@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ecoflow
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Note: PORT is automatically set by Render
+      # Add your database and other environment variables in Render dashboard
+      # DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, DB_SSL
+      # JWT_SECRET, DEVICE_API_KEY
+
