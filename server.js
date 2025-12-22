@@ -24,6 +24,11 @@ initializeDatabase();
 app.use('/api', authRoutes);
 app.use('/api/data', dataRoutes);
 
+// Default root route -> redirect to login page
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
+});
+
 // Server Start
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
