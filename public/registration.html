@@ -86,8 +86,8 @@
             }
 
             try {
-                // Send request with Authorization header for server-side middleware check
-                const response = await fetch('http://localhost:3000/api/register', {
+                // Use relative path so it works on Render and locally
+                const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

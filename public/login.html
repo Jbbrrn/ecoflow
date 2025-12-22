@@ -43,8 +43,8 @@
             messageElement.textContent = 'Logging in...';
 
             try {
-                // Send credentials to the Node.js API endpoint
-                const response = await fetch('http://localhost:3000/api/login', {
+                // Use relative path so it works on Render and locally
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
