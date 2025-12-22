@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration - Ecoflow (Admin Only)</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <h1>🌱 Register New User</h1>
+    <p class="text-center">This page is restricted to Admin users only.</p>
+    <a href="admin_dashboard.html">← Back to Dashboard</a>
+    
+    <form id="registrationForm">
+        
+        <div>
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" placeholder="Enter user's full name" required>
+        </div>
+        
+        <div>
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" placeholder="Enter user's email" required>
+        </div>
+
+        <div>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Create a secure password" required>
+        </div>
+
+        <div>
+            <label for="role">User Role</label>
+            <select id="role" name="role" required>
+                <option value="gardener">🌿 Gardener</option>
+                <option value="admin">👤 Admin</option>
+            </select>
+        </div>
+        
+        <button type="submit">✅ Register User</button>
+        <p id="message"></p>
+    </form>
+    
+    <footer class="footer">
+        <p>© 2025 Ecoflow - Smart Garden Monitoring System</p>
+    </footer>
+
+    <script>
+        // --- 1. Client-Side Role Check (Security Gate) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('userToken');
+            const role = localStorage.getItem('userRole');
+
+            if (!token) {
+                alert('Session Expired or Missing. Please log in first.');
+                window.location.href = 'login.html';
+                return; 
+            }
+            
+            if (role !== 'admin') {
+                alert('ACCESS DENIED: You must be logged in as an Admin to access the registration page.');
+                window.location.href = 'login.html';
+            }
+        });
+
+        // --- 2. Registration Submission Logic (Token Handling Fix) ---
+        document.getElementById('registrationForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); 
+
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const userData = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                role: formData.get('role')
+            };
+            
+            const token = localStorage.getItem('userToken'); // CRITICAL: Retrieve the stored token
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = 'Registering...';
+
+            if (!token) {
+                messageElement.textContent = 'Error: Authentication token is missing. Please log in again.';
+                return;
+            }
+
+            try {
+                // Send request with Authorization header for server-side middleware check
+                const response = await fetch('http://localhost:3000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // FIX: Add the Authorization header here
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageElement.textContent = `Success! User ${userData.email} registered.`;
+                    form.reset(); 
+                } else {
+                    messageElement.textContent = `Error: ${result.message || 'Registration failed.'}`;
+                }
+
+            } catch (error) {
+                console.error('Network Error:', error);
+                messageElement.textContent = 'An unexpected error occurred. Check server connection.';
+            }
+        });
+    </script>
+</body>
+</html>

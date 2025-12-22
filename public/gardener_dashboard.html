@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gardener Dashboard - Ecoflow</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <header class="header">
+            <h1>🌱 Ecoflow Gardener Dashboard</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 0;">Welcome, Maintenance Staff! Monitor and control your garden.</p>
+        </header>
+        
+        <section>
+            <h2>📈 Real-Time Monitoring</h2>
+            <p>Current readings from your garden sensors.</p>
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="temperature">--</div>
+                    <div class="stat-label">🌡️ Temperature</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-value" id="soil-moisture">--</div>
+                    <div class="stat-label">💧 Soil Moisture</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="humidity">--</div>
+                    <div class="stat-label">💨 Humidity</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-value" id="light">N/A</div>
+                    <div class="stat-label">☀️ Light (lux)</div>
+                </div>
+            </div>
+            <p id="last-update" style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 1rem;"></p>
+        </section>
+
+        <section>
+            <h2>🎛️ Manual Controls</h2>
+            <p>Override automatic systems when needed.</p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button class="btn-primary">💧 Activate Irrigation</button>
+                <button class="btn-secondary">🌀 Toggle Ventilation</button>
+            </div>
+        </section>
+        
+        <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
+        
+        <footer class="footer">
+            <p>© 2025 Ecoflow - Smart Garden Monitoring System</p>
+        </footer>
+    </div>
+    
+    <script>
+        function logout() {
+            localStorage.removeItem('userToken');
+            localStorage.removeItem('userRole');
+            window.location.href = 'login.html';
+        }
+
+        // Fetch sensor data from the API
+        async function fetchSensorData() {
+            const token = localStorage.getItem('userToken');
+            
+            if (!token) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/data/latest', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 404) {
+                    // No data in database
+                    document.getElementById('temperature').textContent = 'No data';
+                    document.getElementById('soil-moisture').textContent = 'No data';
+                    document.getElementById('humidity').textContent = 'No data';
+                    document.getElementById('light').textContent = 'N/A';
+                    document.getElementById('last-update').textContent = 'No sensor data available. Database is empty.';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sensor data');
+                }
+
+                const data = await response.json();
+                
+                // Update the display with real data
+                document.getElementById('temperature').textContent = 
+                    data.air_temperature_celsius !== null ? `${data.air_temperature_celsius}°C` : 'N/A';
+                document.getElementById('soil-moisture').textContent = 
+                    data.soil_moisture_percent !== null ? `${data.soil_moisture_percent}%` : 'N/A';
+                document.getElementById('humidity').textContent = 
+                    data.air_humidity_percent !== null ? `${data.air_humidity_percent}%` : 'N/A';
+                document.getElementById('light').textContent = 'N/A'; // Light sensor not in database
+                
+                // Update last update timestamp
+                if (data.timestamp) {
+                    const updateTime = new Date(data.timestamp).toLocaleString();
+                    document.getElementById('last-update').textContent = `Last updated: ${updateTime}`;
+                }
+
+            } catch (error) {
+                console.error('Error fetching sensor data:', error);
+                document.getElementById('last-update').textContent = 'Error loading sensor data.';
+            }
+        }
+
+        // Basic check to ensure the user is logged in (client-side check)
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('userToken');
+            const role = localStorage.getItem('userRole');
+
+            if (!token || role !== 'gardener') {
+                alert('Access Denied. Please log in as a Gardener.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Fetch data immediately on page load
+            fetchSensorData();
+            
+            // Update data every 30 seconds
+            setInterval(fetchSensorData, 30000);
+        });
+    </script>
+</body>
+</html>

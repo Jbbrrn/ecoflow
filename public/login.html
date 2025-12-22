@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login - Ecoflow</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <h1>🌿 Ecoflow Login</h1>
+    <form id="loginForm">
+        <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+        </div>
+        
+        <div>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+        
+        <button type="submit">🔐 Log In</button>
+        <p id="message"></p>
+    </form>
+    
+    <footer class="footer">
+        <p>© 2025 Ecoflow - Smart Garden Monitoring System</p>
+    </footer>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const credentials = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = 'Logging in...';
+
+            try {
+                // Send credentials to the Node.js API endpoint
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(credentials)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Success: Store user information (or a token) and redirect
+                    localStorage.setItem('userToken', result.token); 
+                    localStorage.setItem('userRole', result.userRole);
+                    messageElement.textContent = `Success! Welcome, ${result.username}. Redirecting...`;
+                    
+                    // --- REDIRECT LOGIC ---
+                    if (result.userRole === 'admin') {
+                        window.location.href = 'admin_dashboard.html';
+                    } else if (result.userRole === 'gardener') {
+                        window.location.href = 'gardener_dashboard.html';
+                    }
+                    
+                } else {
+                    messageElement.textContent = `Login Failed: ${result.message || 'Invalid credentials.'}`;
+                }
+
+            } catch (error) {
+                console.error('Network Error:', error);
+                messageElement.textContent = 'An unexpected error occurred. Check server connection.';
+            }
+        });
+    </script>
+</body>
+</html>
