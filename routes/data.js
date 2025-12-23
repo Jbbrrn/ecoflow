@@ -11,30 +11,43 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
     const { 
         temperature, 
         humidity,    
-        soil,        
+        soil1,       
+        soil2,       
+        soil3,       
         lowLevel,    
         highLevel,   
         valve,       
-        pump         
+        pump,
+        timestamp    
     } = req.body;
     
     const device_id = req.headers['x-device-id'] || 'RPi_1';
 
     // Basic Input Validation
-    if (typeof temperature === 'undefined' || typeof soil === 'undefined') {
-         return res.status(400).json({ message: 'Missing required sensor data (temperature or soil).' });
+    if (typeof temperature === 'undefined' || 
+        typeof soil1 === 'undefined' || 
+        typeof soil2 === 'undefined' || 
+        typeof soil3 === 'undefined') {
+         return res.status(400).json({ message: 'Missing required sensor data (temperature, soil1, soil2, or soil3).' });
     }
 
     try {
         const pool = getPool();
+        // Use timestamp from body if provided, otherwise use NOW()
+        const timestampValue = timestamp || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
         const [result] = await pool.execute(
             `INSERT INTO sensor_data 
-             (device_id, timestamp, soil_moisture_percent, air_temperature_celsius, air_humidity_percent, 
+             (device_id, timestamp, soil_moisture_1_percent, soil_moisture_2_percent, soil_moisture_3_percent, 
+              air_temperature_celsius, air_humidity_percent, 
               valve_status, pump_status, water_level_low_status, water_level_high_status) 
-             VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 device_id,
-                soil,           
+                timestampValue,
+                soil1,           
+                soil2,           
+                soil3,           
                 temperature,    
                 humidity,       
                 valve,          
@@ -44,7 +57,7 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
             ]
         );
         
-        console.log(`Data ingested successfully for ${device_id}. Temp: ${temperature}°C`);
+        console.log(`Data ingested successfully for ${device_id}. Temp: ${temperature}°C, Soil: ${soil1}%, ${soil2}%, ${soil3}%`);
         
         res.status(202).json({ 
             message: 'Data accepted and stored.', 
@@ -67,7 +80,9 @@ router.get('/latest', authenticateToken, async (req, res) => {
         const [rows] = await pool.execute(
             `SELECT 
                 timestamp,
-                soil_moisture_percent, 
+                soil_moisture_1_percent, 
+                soil_moisture_2_percent, 
+                soil_moisture_3_percent, 
                 air_temperature_celsius, 
                 air_humidity_percent, 
                 valve_status, 
