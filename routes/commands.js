@@ -195,6 +195,38 @@ router.post('/update', authenticateDevice, async (req, res) => {
             return res.status(404).json({ message: 'Command not found.' });
         }
 
+        // If command was successful, update the latest sensor_data row
+        if (status === 'SUCCESS' && actual_state) {
+            // Get the device type from the command
+            const [commandRows] = await pool.execute(
+                `SELECT device FROM device_commands WHERE command_id = ?`,
+                [command_id]
+            );
+
+            if (commandRows.length > 0) {
+                const device = commandRows[0].device;
+                const statusValue = actual_state === 'ON' ? 1 : 0;
+                const statusColumn = device === 'pump' ? 'pump_status' : 'valve_status';
+
+                // Update the latest sensor_data row (most recent timestamp)
+                // Get the max timestamp first, then update
+                const [maxTimestampRows] = await pool.execute(
+                    `SELECT MAX(timestamp) as max_ts FROM sensor_data`
+                );
+                
+                if (maxTimestampRows.length > 0 && maxTimestampRows[0].max_ts) {
+                    await pool.execute(
+                        `UPDATE sensor_data 
+                         SET ${statusColumn} = ?
+                         WHERE timestamp = ?`,
+                        [statusValue, maxTimestampRows[0].max_ts]
+                    );
+                }
+
+                console.log(`Updated ${statusColumn} to ${statusValue} in latest sensor_data row`);
+            }
+        }
+
         console.log(`Command ${command_id} updated: status=${status}, actual_state=${actual_state || 'N/A'}`);
 
         res.status(200).json({
