@@ -5,13 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Ecoflow</title>
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="dashboard-wrapper">
         <header class="header">
             <h1>🌿 Ecoflow Admin Dashboard</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 0;">Welcome, System Administrator! Manage your smart garden ecosystem.</p>
+            <p class="header-subtitle">Welcome, System Administrator! Manage your smart garden ecosystem.</p>
         </header>
+        
+        <div id="alert-container"></div>
         
         <section>
             <h2>👥 User Management</h2>
@@ -24,25 +28,95 @@
         <section>
             <h2>📊 System Analytics</h2>
             <p>Monitor your garden's health with real-time data visualization.</p>
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="temperature">--</div>
-                    <div class="stat-label">🌡️ Temperature</div>
+            
+            <div class="sensor-grid">
+                <div class="sensor-card" id="temp-card">
+                    <div class="stat-label">🌡️ Air Temperature</div>
+                    <div class="sensor-value" id="temperature">--</div>
+                    <div class="stat-label" id="temp-status">Loading...</div>
                 </div>
-                <div class="stat-card blue">
-                    <div class="stat-value" id="soil-moisture">--</div>
-                    <div class="stat-label">💧 Soil Moisture</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="humidity">--</div>
-                    <div class="stat-label">💨 Humidity</div>
-                </div>
-                <div class="stat-card blue">
-                    <div class="stat-value" id="light">N/A</div>
-                    <div class="stat-label">☀️ Light (lux)</div>
+                
+                <div class="sensor-card blue" id="humidity-card">
+                    <div class="stat-label">💨 Air Humidity</div>
+                    <div class="sensor-value" id="humidity">--</div>
+                    <div class="stat-label" id="humidity-status">Loading...</div>
                 </div>
             </div>
-            <p id="last-update" style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 1rem;"></p>
+            
+            <h3 class="section-heading">💧 Soil Moisture Sensors</h3>
+            <div class="sensor-grid">
+                <div class="sensor-card" id="soil1-card">
+                    <div class="stat-label">🌱 Sensor 1</div>
+                    <div class="sensor-value" id="soil1">--</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="soil1-bar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="stat-label sensor-status-label" id="soil1-status">Loading...</div>
+                </div>
+                
+                <div class="sensor-card" id="soil2-card">
+                    <div class="stat-label">🌱 Sensor 2</div>
+                    <div class="sensor-value" id="soil2">--</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="soil2-bar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="stat-label sensor-status-label" id="soil2-status">Loading...</div>
+                </div>
+                
+                <div class="sensor-card" id="soil3-card">
+                    <div class="stat-label">🌱 Sensor 3</div>
+                    <div class="sensor-value" id="soil3">--</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="soil3-bar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="stat-label sensor-status-label" id="soil3-status">Loading...</div>
+                </div>
+            </div>
+            
+            <h3 class="section-heading">⚙️ System Status</h3>
+            <div class="system-status-grid">
+                <div>
+                    <strong>💧 Irrigation Valve</strong>
+                    <div class="status-indicator" id="valve-status">
+                        <span class="status-dot"></span>
+                        <span>--</span>
+                    </div>
+                </div>
+                <div>
+                    <strong>🚰 Water Pump</strong>
+                    <div class="status-indicator" id="pump-status">
+                        <span class="status-dot"></span>
+                        <span>--</span>
+                    </div>
+                </div>
+                <div>
+                    <strong>📉 Water Level (Low)</strong>
+                    <div class="status-indicator" id="water-low-status">
+                        <span class="status-dot"></span>
+                        <span>--</span>
+                    </div>
+                </div>
+                <div>
+                    <strong>📈 Water Level (High)</strong>
+                    <div class="status-indicator" id="water-high-status">
+                        <span class="status-dot"></span>
+                        <span>--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <p id="last-update" class="last-update"></p>
+        </section>
+
+        <section>
+            <h2>📈 Historical Trends</h2>
+            <p>View trends over the last 24 hours.</p>
+            <div class="chart-container">
+                <canvas id="soilChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="environmentChart"></canvas>
+            </div>
         </section>
         
         <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
@@ -53,14 +127,241 @@
     </div>
 
     <script>
-        // Simple client-side logout
+        let soilChart = null;
+        let environmentChart = null;
+
         function logout() {
             localStorage.removeItem('userToken');
             localStorage.removeItem('userRole');
             window.location.href = 'login.html';
         }
 
-        // Fetch sensor data from the API
+        function getSoilMoistureStatus(value) {
+            if (value === null || value === undefined) return { status: 'unknown', class: '', text: 'No data' };
+            if (value < 20) return { status: 'low', class: 'low', text: 'Very Dry - Needs Water' };
+            if (value < 40) return { status: 'medium', class: 'medium', text: 'Dry - Monitor Closely' };
+            if (value < 70) return { status: 'good', class: 'good', text: 'Optimal' };
+            return { status: 'excellent', class: 'excellent', text: 'Well Hydrated' };
+        }
+
+        function getTemperatureStatus(value) {
+            if (value === null || value === undefined) return { status: 'unknown', text: 'No data' };
+            if (value < 10) return { status: 'cold', text: 'Cold' };
+            if (value < 20) return { status: 'cool', text: 'Cool' };
+            if (value < 30) return { status: 'optimal', text: 'Optimal' };
+            if (value < 35) return { status: 'warm', text: 'Warm' };
+            return { status: 'hot', text: 'Hot - Monitor' };
+        }
+
+        function getHumidityStatus(value) {
+            if (value === null || value === undefined) return { status: 'unknown', text: 'No data' };
+            if (value < 30) return { status: 'low', text: 'Low Humidity' };
+            if (value < 60) return { status: 'optimal', text: 'Optimal' };
+            return { status: 'high', text: 'High Humidity' };
+        }
+
+        function updateProgressBar(elementId, value, statusClass) {
+            const bar = document.getElementById(elementId);
+            if (bar && value !== null && value !== undefined) {
+                bar.style.width = `${Math.min(100, Math.max(0, value))}%`;
+                bar.textContent = `${Math.round(value)}%`;
+                bar.className = `progress-bar ${statusClass}`;
+            }
+        }
+
+        function updateStatusIndicator(elementId, isActive, isWarning = false) {
+            const indicator = document.getElementById(elementId);
+            if (indicator) {
+                const dot = indicator.querySelector('.status-dot');
+                const text = indicator.querySelector('span:last-child');
+                
+                if (isWarning) {
+                    indicator.className = 'status-indicator warning';
+                    dot.className = 'status-dot warning';
+                    text.textContent = 'Warning';
+                } else if (isActive) {
+                    indicator.className = 'status-indicator active';
+                    dot.className = 'status-dot active';
+                    text.textContent = 'Active';
+                } else {
+                    indicator.className = 'status-indicator inactive';
+                    dot.className = 'status-dot inactive';
+                    text.textContent = 'Inactive';
+                }
+            }
+        }
+
+        function checkAlerts(data) {
+            const alerts = [];
+            
+            // Check soil moisture
+            [data.soil_moisture_1_percent, data.soil_moisture_2_percent, data.soil_moisture_3_percent].forEach((val, idx) => {
+                if (val !== null && val < 20) {
+                    alerts.push({ type: 'danger', message: `⚠️ Soil Sensor ${idx + 1} is very dry (${val}%) - Immediate watering recommended!` });
+                } else if (val !== null && val < 30) {
+                    alerts.push({ type: 'warning', message: `⚠️ Soil Sensor ${idx + 1} is dry (${val}%) - Consider watering soon.` });
+                }
+            });
+            
+            // Check temperature
+            if (data.air_temperature_celsius !== null && data.air_temperature_celsius > 35) {
+                alerts.push({ type: 'warning', message: `🌡️ High temperature detected (${data.air_temperature_celsius}°C) - Monitor plant stress.` });
+            }
+            
+            // Check water level
+            if (data.water_level_low_status === 1) {
+                alerts.push({ type: 'danger', message: '🚨 Water level is LOW - Refill water reservoir immediately!' });
+            }
+            
+            return alerts;
+        }
+
+        function displayAlerts(alerts) {
+            const container = document.getElementById('alert-container');
+            if (alerts.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = alerts.map(alert => 
+                `<div class="alert-banner ${alert.type} show">
+                    ${alert.message}
+                </div>`
+            ).join('');
+        }
+
+        function updateSensorDisplay(data) {
+            // Temperature
+            const temp = data.air_temperature_celsius;
+            document.getElementById('temperature').textContent = 
+                temp !== null ? `${temp}°C` : 'N/A';
+            const tempStatus = getTemperatureStatus(temp);
+            document.getElementById('temp-status').textContent = tempStatus.text;
+            
+            // Humidity
+            const humidity = data.air_humidity_percent;
+            document.getElementById('humidity').textContent = 
+                humidity !== null ? `${humidity}%` : 'N/A';
+            const humidityStatus = getHumidityStatus(humidity);
+            document.getElementById('humidity-status').textContent = humidityStatus.text;
+            
+            // Soil Moisture Sensors
+            const soil1 = data.soil_moisture_1_percent;
+            const soil2 = data.soil_moisture_2_percent;
+            const soil3 = data.soil_moisture_3_percent;
+            
+            [soil1, soil2, soil3].forEach((val, idx) => {
+                const num = idx + 1;
+                document.getElementById(`soil${num}`).textContent = 
+                    val !== null ? `${val}%` : 'N/A';
+                
+                const soilStatus = getSoilMoistureStatus(val);
+                document.getElementById(`soil${num}-status`).textContent = soilStatus.text;
+                updateProgressBar(`soil${num}-bar`, val, soilStatus.class);
+                
+                // Update card border color
+                const card = document.getElementById(`soil${num}-card`);
+                if (soilStatus.class === 'low') card.className = 'sensor-card danger';
+                else if (soilStatus.class === 'medium') card.className = 'sensor-card warning';
+                else card.className = 'sensor-card';
+            });
+            
+            // System Status
+            updateStatusIndicator('valve-status', data.valve_status === 1);
+            updateStatusIndicator('pump-status', data.pump_status === 1);
+            updateStatusIndicator('water-low-status', data.water_level_low_status === 1, data.water_level_low_status === 1);
+            updateStatusIndicator('water-high-status', data.water_level_high_status === 1);
+            
+            // Last update
+            if (data.timestamp) {
+                const updateTime = new Date(data.timestamp).toLocaleString();
+                document.getElementById('last-update').textContent = `Last updated: ${updateTime}`;
+            }
+            
+            // Alerts
+            const alerts = checkAlerts(data);
+            displayAlerts(alerts);
+        }
+
+        function initializeCharts() {
+            const soilCtx = document.getElementById('soilChart');
+            const envCtx = document.getElementById('environmentChart');
+            
+            if (soilCtx) {
+                soilChart = new Chart(soilCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'Sensor 1', data: [], borderColor: '#43a047', backgroundColor: 'rgba(67, 160, 71, 0.1)', tension: 0.4 },
+                            { label: 'Sensor 2', data: [], borderColor: '#1e88e5', backgroundColor: 'rgba(30, 136, 229, 0.1)', tension: 0.4 },
+                            { label: 'Sensor 3', data: [], borderColor: '#ff9800', backgroundColor: 'rgba(255, 152, 0, 0.1)', tension: 0.4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            title: { display: true, text: 'Soil Moisture Trends (%)', font: { size: 16 } },
+                            legend: { display: true }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Moisture %' } }
+                        }
+                    }
+                });
+            }
+            
+            if (envCtx) {
+                environmentChart = new Chart(envCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'Temperature (°C)', data: [], borderColor: '#f44336', backgroundColor: 'rgba(244, 67, 54, 0.1)', yAxisID: 'y', tension: 0.4 },
+                            { label: 'Humidity (%)', data: [], borderColor: '#2196f3', backgroundColor: 'rgba(33, 150, 243, 0.1)', yAxisID: 'y1', tension: 0.4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            title: { display: true, text: 'Temperature & Humidity Trends', font: { size: 16 } },
+                            legend: { display: true }
+                        },
+                        scales: {
+                            y: { type: 'linear', position: 'left', title: { display: true, text: 'Temperature (°C)' } },
+                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateCharts(historyData) {
+            if (!historyData || historyData.length === 0) return;
+            
+            const labels = historyData.map(d => {
+                const date = new Date(d.timestamp);
+                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            });
+            
+            if (soilChart) {
+                soilChart.data.labels = labels;
+                soilChart.data.datasets[0].data = historyData.map(d => d.soil_moisture_1_percent);
+                soilChart.data.datasets[1].data = historyData.map(d => d.soil_moisture_2_percent);
+                soilChart.data.datasets[2].data = historyData.map(d => d.soil_moisture_3_percent);
+                soilChart.update();
+            }
+            
+            if (environmentChart) {
+                environmentChart.data.labels = labels;
+                environmentChart.data.datasets[0].data = historyData.map(d => d.air_temperature_celsius);
+                environmentChart.data.datasets[1].data = historyData.map(d => d.air_humidity_percent);
+                environmentChart.update();
+            }
+        }
+
         async function fetchSensorData() {
             const token = localStorage.getItem('userToken');
             
@@ -69,6 +370,7 @@
             }
 
             try {
+                // Fetch latest data
                 const response = await fetch('/api/data/latest', {
                     method: 'GET',
                     headers: {
@@ -78,11 +380,11 @@
                 });
 
                 if (response.status === 404) {
-                    // No data in database
                     document.getElementById('temperature').textContent = 'No data';
-                    document.getElementById('soil-moisture').textContent = 'No data';
                     document.getElementById('humidity').textContent = 'No data';
-                    document.getElementById('light').textContent = 'N/A';
+                    ['soil1', 'soil2', 'soil3'].forEach(id => {
+                        document.getElementById(id).textContent = 'No data';
+                    });
                     document.getElementById('last-update').textContent = 'No sensor data available. Database is empty.';
                     return;
                 }
@@ -92,20 +394,20 @@
                 }
 
                 const data = await response.json();
+                updateSensorDisplay(data);
                 
-                // Update the display with real data
-                document.getElementById('temperature').textContent = 
-                    data.air_temperature_celsius !== null ? `${data.air_temperature_celsius}°C` : 'N/A';
-                document.getElementById('soil-moisture').textContent = 
-                    data.soil_moisture_percent !== null ? `${data.soil_moisture_percent}%` : 'N/A';
-                document.getElementById('humidity').textContent = 
-                    data.air_humidity_percent !== null ? `${data.air_humidity_percent}%` : 'N/A';
-                document.getElementById('light').textContent = 'N/A'; // Light sensor not in database
+                // Fetch historical data for charts
+                const historyResponse = await fetch('/api/data/history?hours=24', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
                 
-                // Update last update timestamp
-                if (data.timestamp) {
-                    const updateTime = new Date(data.timestamp).toLocaleString();
-                    document.getElementById('last-update').textContent = `Last updated: ${updateTime}`;
+                if (historyResponse.ok) {
+                    const historyData = await historyResponse.json();
+                    updateCharts(historyData);
                 }
 
             } catch (error) {
@@ -114,7 +416,6 @@
             }
         }
 
-        // Basic check to ensure the user is logged in (client-side check)
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('userToken');
             const role = localStorage.getItem('userRole');
@@ -125,11 +426,9 @@
                 return;
             }
 
-            // Fetch data immediately on page load
+            initializeCharts();
             fetchSensorData();
-            
-            // Update data every 30 seconds
-            setInterval(fetchSensorData, 30000);
+            setInterval(fetchSensorData, 30000); // Update every 30 seconds
         });
     </script>
 </body>

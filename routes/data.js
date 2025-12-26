@@ -106,5 +106,40 @@ router.get('/latest', authenticateToken, async (req, res) => {
     }
 });
 
+ /**
+ * GET /api/data/history
+ * Get historical sensor data for charts
+ * Query params: hours (default: 24) - number of hours of history to retrieve
+ */
+router.get('/history', authenticateToken, async (req, res) => {
+    try {
+        const hours = parseInt(req.query.hours) || 24;
+        const pool = getPool();
+        
+        const [rows] = await pool.execute(
+            `SELECT 
+                timestamp,
+                soil_moisture_1_percent, 
+                soil_moisture_2_percent, 
+                soil_moisture_3_percent, 
+                air_temperature_celsius, 
+                air_humidity_percent, 
+                valve_status, 
+                pump_status,
+                water_level_low_status,
+                water_level_high_status
+             FROM sensor_data 
+             WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+             ORDER BY timestamp ASC`
+        , [hours]);
+
+        res.status(200).json(rows);
+
+    } catch (error) {
+        console.error('Error fetching historical sensor data:', error);
+        res.status(500).json({ message: 'Internal server error while fetching historical data.' });
+    }
+});
+
 module.exports = router;
 
