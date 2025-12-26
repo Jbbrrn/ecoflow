@@ -19,7 +19,9 @@ async function initializeDatabase() {
         return pool;
     } catch (error) {
         console.error('Failed to connect to database:', error.message);
-        process.exit(1);
+        // Don't exit process - let server continue running
+        // The server will retry on next request or can be restarted
+        throw error;
     }
 }
 

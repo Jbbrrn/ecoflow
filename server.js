@@ -18,9 +18,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Initialize database connection
-initializeDatabase();
-
 // Routes
 app.use('/api', authRoutes);
 app.use('/api/data', dataRoutes);
@@ -31,8 +28,19 @@ app.get('/', (req, res) => {
     res.redirect('/login.html');
 });
 
-// Server Start
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
+// Server Start - Start server first, then initialize database
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
     console.log(`Access login page: http://localhost:${PORT}/login.html`);
+    
+    // Initialize database connection after server starts
+    initializeDatabase().catch((error) => {
+        console.error('Database initialization failed, but server is running:', error.message);
+        console.log('Server will continue running. Database operations may fail until connection is established.');
+    });
 });
