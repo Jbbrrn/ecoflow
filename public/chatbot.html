@@ -90,14 +90,14 @@
 
     <script>
         // Configuration - Update this with your n8n webhook URL
-        const N8N_WEBHOOK_URL = 'YOUR_N8N_WEBHOOK_URL_HERE'; // e.g., 'https://your-n8n-instance.com/webhook/chatbot'
+        const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot'; // e.g., 'https://your-n8n-instance.com/webhook/chatbot'
 
         const chatMessages = document.getElementById('chatMessages');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
 
         // Check if webhook URL is configured
-        if (N8N_WEBHOOK_URL === 'YOUR_N8N_WEBHOOK_URL_HERE') {
+        if (N8N_WEBHOOK_URL === 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot') {
             console.warn('⚠️ N8N_WEBHOOK_URL not configured. Please update the URL in chatbot.html');
             addSystemMessage('⚠️ Configuration Required: Please set the N8N_WEBHOOK_URL in chatbot.html', 'error');
         }
