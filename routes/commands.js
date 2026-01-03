@@ -131,7 +131,7 @@ router.get('/pending', authenticateDevice, async (req, res) => {
         // Format response to match expected JSON format
         const formattedCommands = commands.map(cmd => ({
             device: cmd.device,
-            state: cmd.desired_state,
+            state: cmd.state,
             command_id: cmd.command_id
         }));
 
