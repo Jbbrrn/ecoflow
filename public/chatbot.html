@@ -96,12 +96,6 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
 
-        // Check if webhook URL is configured
-        if (N8N_WEBHOOK_URL === 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot') {
-            console.warn('⚠️ N8N_WEBHOOK_URL not configured. Please update the URL in chatbot.html');
-            addSystemMessage('⚠️ Configuration Required: Please set the N8N_WEBHOOK_URL in chatbot.html', 'error');
-        }
-
         // Add message to chat
         function addMessage(text, isBot = false, isLoading = false) {
             const messageDiv = document.createElement('div');
@@ -161,11 +155,6 @@
             const question = chatInput.value.trim();
             
             if (!question) {
-                return;
-            }
-
-            if (N8N_WEBHOOK_URL === 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot') {
-                addSystemMessage('Error: N8N webhook URL not configured. Please update chatbot.html with your n8n webhook URL.', 'error');
                 return;
             }
 
