@@ -80,7 +80,9 @@
         </div>
 
         <div style="text-align: center; margin-top: var(--space-xl);">
-            <a href="admin_dashboard.html" class="btn-secondary">← Back to Dashboard</a>
+            <button id="backToDashboardBtn" class="btn-secondary">
+                ← Back to Dashboard
+            </button>
         </div>
 
         <footer class="footer">
@@ -229,9 +231,25 @@
             });
         });
 
-        // Focus input on load
+        // Focus input on load and configure back button redirect based on role
         document.addEventListener('DOMContentLoaded', () => {
             chatInput.focus();
+
+            const backBtn = document.getElementById('backToDashboardBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    const role = localStorage.getItem('userRole');
+
+                    if (role === 'admin') {
+                        window.location.href = 'admin_dashboard.html';
+                    } else if (role === 'gardener') {
+                        window.location.href = 'gardener_dashboard.html';
+                    } else {
+                        // Fallback: if no role is set, go to login
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
         });
     </script>
 </body>
