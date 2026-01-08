@@ -1207,31 +1207,12 @@ button:disabled {
 }
 
 .status-time {
-  font-size: 0.75rem;
-  color: var(--gray-500);
-  font-style: italic;
-  width: 100%;
-  text-align: right;
-}
-  margin: var(--space-xs) 0;
-}
-
-.status-value.pending {
-  color: #ff9800;
-}
-
-.status-value.success {
-  color: var(--green-medium);
-}
-
-.status-value.failed {
-  color: #f44336;
-}
-
-.status-time {
   font-size: 0.875rem;
   color: var(--gray-500);
   margin-top: var(--space-xs);
+  font-style: italic;
+  width: 100%;
+  text-align: right;
 }
 
 /* Last Update */
@@ -2071,6 +2052,40 @@ a:focus-visible {
 
 .message-text-large li {
   margin-bottom: var(--space-xs);
+}
+
+.message-text-large a {
+  color: var(--green-medium);
+  text-decoration: underline;
+  transition: color var(--transition-fast);
+  word-break: break-all;
+}
+
+.message-text-large a:hover {
+  color: var(--green-dark);
+  text-decoration: underline;
+}
+
+.message-text-large a:visited {
+  color: var(--green-dark);
+}
+
+.message-text-large p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.message-text-large p:first-child {
+  margin-top: 0;
+}
+
+.message-text-large p:last-child {
+  margin-bottom: 0;
+}
+
+.message-text-large strong {
+  font-weight: 600;
+  color: var(--gray-900);
 }
 
 .message-note {

@@ -128,14 +128,18 @@
             messageDiv.className = `chatbot-fullscreen-message ${isBot ? 'bot-message' : 'user-message'}`;
             
             if (isBot) {
+                // For bot messages, render HTML (for hyperlinks and formatting)
+                // But sanitize to prevent XSS attacks
+                const sanitizedHtml = isLoading ? '<span class="typing-indicator"></span>' : sanitizeHtml(text);
                 messageDiv.innerHTML = `
                     <div class="message-avatar-large">🤖</div>
                     <div class="message-content-large">
-                        <div class="message-text-large">${isLoading ? '<span class="typing-indicator"></span>' : escapeHtml(text)}</div>
+                        <div class="message-text-large">${sanitizedHtml}</div>
                         ${!isLoading ? `<div class="message-time-large">${getCurrentTime()}</div>` : ''}
                     </div>
                 `;
             } else {
+                // For user messages, escape HTML for security
                 messageDiv.innerHTML = `
                     <div class="message-content-large">
                         <div class="message-text-large">${escapeHtml(text)}</div>
@@ -171,6 +175,124 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Sanitize HTML to allow safe tags (links, formatting) while preventing XSS
+        function sanitizeHtml(html) {
+            if (!html) return '';
+            
+            // If the HTML is already a string and doesn't contain script tags, 
+            // we can use DOMPurify if available, or use a simpler approach
+            try {
+                // Create a temporary div to parse HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                
+                // Allow only safe tags and attributes
+                const allowedTags = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+                const allowedAttributes = {
+                    'a': ['href', 'target', 'rel', 'style'],
+                    'p': ['style'],
+                    'ul': ['style'],
+                    'ol': ['style'],
+                    'li': ['style']
+                };
+                
+                // Recursively sanitize nodes
+                function sanitizeNode(node) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        return document.createTextNode(node.textContent);
+                    }
+                    
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const tagName = node.tagName.toLowerCase();
+                        
+                        // If tag is not allowed, return only its text content
+                        if (!allowedTags.includes(tagName)) {
+                            const fragment = document.createDocumentFragment();
+                            Array.from(node.childNodes).forEach(child => {
+                                const sanitized = sanitizeNode(child);
+                                if (sanitized) {
+                                    if (sanitized.nodeType) {
+                                        fragment.appendChild(sanitized);
+                                    } else {
+                                        fragment.appendChild(document.createTextNode(String(sanitized)));
+                                    }
+                                }
+                            });
+                            return fragment;
+                        }
+                        
+                        // Create a new element with the same tag
+                        const newElement = document.createElement(tagName);
+                        
+                        // Copy allowed attributes
+                        if (allowedAttributes[tagName]) {
+                            Array.from(node.attributes).forEach(attr => {
+                                if (allowedAttributes[tagName].includes(attr.name)) {
+                                    // Special handling for href to ensure it's a valid URL
+                                    if (attr.name === 'href') {
+                                        try {
+                                            const url = new URL(attr.value, window.location.origin);
+                                            if (url.protocol === 'http:' || url.protocol === 'https:') {
+                                                newElement.setAttribute(attr.name, url.href);
+                                                // Ensure target and rel for external links
+                                                if (!newElement.hasAttribute('target')) {
+                                                    newElement.setAttribute('target', '_blank');
+                                                }
+                                                if (!newElement.hasAttribute('rel')) {
+                                                    newElement.setAttribute('rel', 'noopener noreferrer');
+                                                }
+                                            }
+                                        } catch (e) {
+                                            // Invalid URL, skip this attribute
+                                        }
+                                    } else {
+                                        newElement.setAttribute(attr.name, attr.value);
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Recursively sanitize children
+                        Array.from(node.childNodes).forEach(child => {
+                            const sanitized = sanitizeNode(child);
+                            if (sanitized) {
+                                if (sanitized.nodeType) {
+                                    newElement.appendChild(sanitized);
+                                } else {
+                                    newElement.appendChild(document.createTextNode(String(sanitized)));
+                                }
+                            }
+                        });
+                        
+                        return newElement;
+                    }
+                    
+                    return null;
+                }
+                
+                // Sanitize all child nodes
+                const fragment = document.createDocumentFragment();
+                Array.from(temp.childNodes).forEach(node => {
+                    const sanitized = sanitizeNode(node);
+                    if (sanitized) {
+                        if (sanitized.nodeType) {
+                            fragment.appendChild(sanitized);
+                        } else {
+                            fragment.appendChild(document.createTextNode(String(sanitized)));
+                        }
+                    }
+                });
+                
+                const result = document.createElement('div');
+                result.appendChild(fragment);
+                return result.innerHTML;
+            } catch (e) {
+                console.error('HTML sanitization error:', e);
+                // Fallback: escape HTML if sanitization fails
+                return escapeHtml(html);
+            }
         }
 
         function getCurrentTime() {
