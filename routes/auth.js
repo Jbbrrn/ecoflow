@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPool } = require('../config/database');
-const { JWT_SECRET, SALT_ROUNDS } = require('../config/constants');
+const { JWT_SECRET, SALT_ROUNDS, SERVICE_API_KEY } = require('../config/constants');
 const { authenticateToken, authorizeAdmin } = require('../middleware/auth');
 
 /**
@@ -90,6 +90,74 @@ router.post('/login', async (req, res) => {
     } catch (error) {
         console.error('Login Error:', error);
         res.status(500).json({ message: 'Internal server error during login.' });
+    }
+});
+
+/**
+ * POST /api/auth/service-token
+ * Generate a JWT token for service accounts (e.g., n8n workflows)
+ * Uses SERVICE_API_KEY for authentication instead of user credentials
+ * Body: { service_api_key: string, user_id?: number, role?: 'admin' | 'gardener' }
+ * If user_id and role are provided, generates token for that user
+ * Otherwise, generates a service account token with default permissions
+ */
+router.post('/service-token', async (req, res) => {
+    const { service_api_key, user_id, role } = req.body;
+
+    // Verify service API key
+    if (!service_api_key || service_api_key !== SERVICE_API_KEY) {
+        return res.status(401).json({ message: 'Invalid service API key.' });
+    }
+
+    try {
+        const pool = getPool();
+        let tokenPayload;
+
+        // If user_id and role are provided, verify user exists and generate token for that user
+        if (user_id && role) {
+            const [users] = await pool.execute(
+                `SELECT user_id, user_role, is_active FROM users WHERE user_id = ? AND user_role = ?`,
+                [user_id, role]
+            );
+
+            if (users.length === 0) {
+                return res.status(404).json({ message: 'User not found or role mismatch.' });
+            }
+
+            const user = users[0];
+            if (!user.is_active) {
+                return res.status(403).json({ message: 'User account is inactive.' });
+            }
+
+            tokenPayload = {
+                user_id: user.user_id,
+                role: user.user_role
+            };
+        } else {
+            // Generate a service account token with default gardener permissions
+            // You can modify this to use a specific service account user_id
+            tokenPayload = {
+                user_id: 0, // Service account ID
+                role: 'gardener', // Default role for service accounts
+                service_account: true
+            };
+        }
+
+        const token = jwt.sign(
+            tokenPayload,
+            JWT_SECRET,
+            { expiresIn: '30d' } // Longer expiration for service accounts
+        );
+
+        res.status(200).json({
+            message: 'Service token generated successfully.',
+            token: token,
+            expiresIn: '30d'
+        });
+
+    } catch (error) {
+        console.error('Service Token Generation Error:', error);
+        res.status(500).json({ message: 'Internal server error during token generation.' });
     }
 });
 

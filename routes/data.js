@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
-const { authenticateToken, authenticateDevice } = require('../middleware/auth');
+const { authenticateToken, authenticateDevice, authenticateTokenOrService } = require('../middleware/auth');
 
 /**
  * POST /api/data/ingest
@@ -73,8 +73,9 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
 /**
  * GET /api/data/latest
  * Get the most recent sensor data reading
+ * Accepts either JWT token (Authorization header) or Service API Key (x-service-api-key header)
  */
-router.get('/latest', authenticateToken, async (req, res) => {
+router.get('/latest', authenticateTokenOrService, async (req, res) => {
     try {
         const pool = getPool();
         const [rows] = await pool.execute(
@@ -110,8 +111,9 @@ router.get('/latest', authenticateToken, async (req, res) => {
  * GET /api/data/history
  * Get historical sensor data for charts
  * Query params: hours (default: 24) - number of hours of history to retrieve
+ * Accepts either JWT token (Authorization header) or Service API Key (x-service-api-key header)
  */
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', authenticateTokenOrService, async (req, res) => {
     try {
         const hours = parseInt(req.query.hours) || 24;
         const pool = getPool();
