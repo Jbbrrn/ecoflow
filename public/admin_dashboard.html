@@ -3,135 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Ecoflow</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <title>Admin Dashboard - Eco Flow</title>
+    <link rel="stylesheet" href="css/dashboard-new.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="dashboard-wrapper">
-        <header class="header">
-            <h1>🌿 Ecoflow Admin Dashboard</h1>
-            <p class="header-subtitle">Welcome, System Administrator! Manage your smart garden ecosystem.</p>
-        </header>
-        
-        <div id="alert-container"></div>
-        
-        <section>
-            <h2>👥 User Management</h2>
-            <p>Add and manage system users including gardeners and other administrators.</p>
-            <button class="btn-primary" onclick="window.location.href = 'registration.html'">
-                ➕ Register New User
-            </button>
-        </section>
-
-        <section>
-            <h2>🤖 AI Irrigation Chatbot</h2>
-            <p>Get intelligent answers about your irrigation system, soil conditions, and crop suitability.</p>
-            <button class="btn-primary" onclick="window.location.href = 'chatbot.html'">
-                💬 Open Chatbot
-            </button>
-        </section>
-
-        <section>
-            <h2>📊 System Analytics</h2>
-            <p>Monitor your garden's health with real-time data visualization.</p>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="dashboard-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="css/logo_ecoflow.png" alt="Eco Flow Logo" class="sidebar-logo">
+                <a href="login.html" class="sidebar-brand">Eco Flow</a>
+            </div>
             
-            <div class="sensor-grid">
-                <div class="sensor-card" id="temp-card">
-                    <div class="stat-label">🌡️ Air Temperature</div>
-                    <div class="sensor-value" id="temperature">--</div>
-                    <div class="stat-label" id="temp-status">Loading...</div>
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Navigation</div>
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#analytics" class="nav-item" data-section="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span>Analytics</span>
+                </a>
+                <a href="#users" class="nav-item" data-section="users">
+                    <span class="nav-icon">👥</span>
+                    <span>User Management</span>
+                </a>
+                <a href="#chatbot" class="nav-item" data-section="chatbot">
+                    <span class="nav-icon">🤖</span>
+                    <span>AI Chatbot</span>
+                </a>
+                <a href="#reports" class="nav-item" data-section="reports">
+                    <span class="nav-icon">📄</span>
+                    <span>Reports</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-user">
+                <div class="user-profile">
+                    <div class="user-avatar" id="user-avatar">A</div>
+                    <div class="user-info">
+                        <div class="user-name" id="user-name">Admin User</div>
+                        <div class="user-role" id="user-role">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <header class="dashboard-header">
+                <h1 class="dashboard-title">Welcome to Eco Flow Dashboard</h1>
+            </header>
+            
+            <div class="dashboard-content">
+                <div id="alert-container"></div>
+                
+                <!-- Widget Grid -->
+                <div class="widget-grid">
+                    <!-- Air Temperature Widget -->
+                    <div class="widget-card sensor-card" id="temp-card">
+                        <div class="widget-header">
+                            <div class="widget-title">AIR TEMPERATURE</div>
+                            <div class="widget-value" id="temperature">--</div>
+                            <div class="widget-trend">
+                                <span class="trend-icon trend-stable">→</span>
+                                <span id="temp-status">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="temp-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Air Humidity Widget -->
+                    <div class="widget-card sensor-card" id="humidity-card">
+                        <div class="widget-header">
+                            <div class="widget-title">AIR HUMIDITY</div>
+                            <div class="widget-value" id="humidity">--</div>
+                            <div class="widget-trend">
+                                <span class="trend-icon trend-stable">→</span>
+                                <span id="humidity-status">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="humidity-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Soil Moisture Widget 1 -->
+                    <div class="widget-card sensor-card" id="soil1-card">
+                        <div class="widget-header">
+                            <div class="widget-title">SOIL MOISTURE SENSOR 1</div>
+                            <div class="widget-value" id="soil1">--</div>
+                            <div class="widget-trend">
+                                <span id="soil1-status">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="soil1-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Soil Moisture Widget 2 -->
+                    <div class="widget-card sensor-card" id="soil2-card">
+                        <div class="widget-header">
+                            <div class="widget-title">SOIL MOISTURE SENSOR 2</div>
+                            <div class="widget-value" id="soil2">--</div>
+                            <div class="widget-trend">
+                                <span id="soil2-status">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="soil2-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Soil Moisture Widget 3 -->
+                    <div class="widget-card sensor-card" id="soil3-card">
+                        <div class="widget-header">
+                            <div class="widget-title">SOIL MOISTURE SENSOR 3</div>
+                            <div class="widget-value" id="soil3">--</div>
+                            <div class="widget-trend">
+                                <span id="soil3-status">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="soil3-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- System Status Widget -->
+                    <div class="widget-card widget-large" id="system-status-card">
+                        <div class="widget-header">
+                            <div class="widget-title">SYSTEM STATUS</div>
+                        </div>
+                        <div class="status-widget">
+                            <div class="status-item">
+                                <div class="status-label">Irrigation Valve</div>
+                                <div class="status-indicator" id="valve-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">--</span>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Water Pump</div>
+                                <div class="status-indicator" id="pump-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">--</span>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Water Level (Low)</div>
+                                <div class="status-indicator" id="water-low-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">--</span>
+                                </div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Water Level (High)</div>
+                                <div class="status-indicator" id="water-high-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="sensor-card blue" id="humidity-card">
-                    <div class="stat-label">💨 Air Humidity</div>
-                    <div class="sensor-value" id="humidity">--</div>
-                    <div class="stat-label" id="humidity-status">Loading...</div>
-                </div>
-            </div>
-            
-            <h3 class="section-heading">💧 Soil Moisture Sensors</h3>
-            <div class="sensor-grid">
-                <div class="sensor-card" id="soil1-card">
-                    <div class="stat-label">🌱 Sensor 1</div>
-                    <div class="sensor-value" id="soil1">--</div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="soil1-bar" style="width: 0%">0%</div>
-                    </div>
-                    <div class="stat-label sensor-status-label" id="soil1-status">Loading...</div>
+                <!-- User Management Section -->
+                <div class="dashboard-section" id="users-section">
+                    <h2 class="section-title">User Management</h2>
+                    <p class="section-description">Add and manage system users including gardeners and other administrators.</p>
+                    <button class="btn-primary" onclick="window.location.href = 'registration.html'">
+                        ➕ Register New User
+                    </button>
                 </div>
                 
-                <div class="sensor-card" id="soil2-card">
-                    <div class="stat-label">🌱 Sensor 2</div>
-                    <div class="sensor-value" id="soil2">--</div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="soil2-bar" style="width: 0%">0%</div>
+                <!-- Historical Trends Section -->
+                <div class="dashboard-section" id="analytics-section">
+                    <h2 class="section-title">Historical Trends</h2>
+                    <p class="section-description">View trends over the last 24 hours.</p>
+                    <div class="chart-container">
+                        <canvas id="soilChart"></canvas>
                     </div>
-                    <div class="stat-label sensor-status-label" id="soil2-status">Loading...</div>
+                    <div class="chart-container">
+                        <canvas id="environmentChart"></canvas>
+                    </div>
                 </div>
                 
-                <div class="sensor-card" id="soil3-card">
-                    <div class="stat-label">🌱 Sensor 3</div>
-                    <div class="sensor-value" id="soil3">--</div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="soil3-bar" style="width: 0%">0%</div>
-                    </div>
-                    <div class="stat-label sensor-status-label" id="soil3-status">Loading...</div>
+                <p id="last-update" class="last-update"></p>
+                
+                <div style="text-align: center; margin-top: var(--space-2xl);">
+                    <button class="btn-logout" onclick="logout()">Logout</button>
                 </div>
             </div>
-            
-            <h3 class="section-heading">⚙️ System Status</h3>
-            <div class="system-status-grid">
-                <div>
-                    <strong>💧 Irrigation Valve</strong>
-                    <div class="status-indicator" id="valve-status">
-                        <span class="status-dot"></span>
-                        <span>--</span>
-                    </div>
-                </div>
-                <div>
-                    <strong>🚰 Water Pump</strong>
-                    <div class="status-indicator" id="pump-status">
-                        <span class="status-dot"></span>
-                        <span>--</span>
-                    </div>
-                </div>
-                <div>
-                    <strong>📉 Water Level (Low)</strong>
-                    <div class="status-indicator" id="water-low-status">
-                        <span class="status-dot"></span>
-                        <span>--</span>
-                    </div>
-                </div>
-                <div>
-                    <strong>📈 Water Level (High)</strong>
-                    <div class="status-indicator" id="water-high-status">
-                        <span class="status-dot"></span>
-                        <span>--</span>
-                    </div>
-                </div>
-            </div>
-            
-            <p id="last-update" class="last-update"></p>
-        </section>
-
-        <section>
-            <h2>📈 Historical Trends</h2>
-            <p>View trends over the last 24 hours.</p>
-            <div class="chart-container">
-                <canvas id="soilChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <canvas id="environmentChart"></canvas>
-            </div>
-        </section>
+        </main>
         
-        <button class="btn-secondary" onclick="logout()">🚪 Logout</button>
-        
-        <footer class="footer">
-            <p>© 2025 Ecoflow - Smart Garden Monitoring System</p>
-        </footer>
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">☰</button>
     </div>
 
     <script>
@@ -170,10 +244,19 @@
 
         function updateProgressBar(elementId, value, statusClass) {
             const bar = document.getElementById(elementId);
-            if (bar && value !== null && value !== undefined) {
-                bar.style.width = `${Math.min(100, Math.max(0, value))}%`;
-                bar.textContent = `${Math.round(value)}%`;
-                bar.className = `progress-bar ${statusClass}`;
+            if (bar) {
+                if (value !== null && value !== undefined && value > 0) {
+                    bar.style.width = `${Math.min(100, Math.max(0, value))}%`;
+                    bar.textContent = `${Math.round(value)}%`;
+                    bar.className = `progress-bar ${statusClass}`;
+                    bar.style.opacity = '1'; // Full opacity when data is available
+                } else {
+                    // Loading state
+                    bar.style.width = '0%';
+                    bar.textContent = '0%';
+                    bar.className = 'progress-bar';
+                    bar.style.opacity = '0.4'; // Reduced opacity for loading state
+                }
             }
         }
 
@@ -181,20 +264,17 @@
             const indicator = document.getElementById(elementId);
             if (indicator) {
                 const dot = indicator.querySelector('.status-dot');
-                const text = indicator.querySelector('span:last-child');
+                const text = indicator.querySelector('.status-text') || indicator.querySelector('span:last-child');
                 
                 if (isWarning) {
-                    indicator.className = 'status-indicator warning';
-                    dot.className = 'status-dot warning';
-                    text.textContent = 'Warning';
+                    if (dot) dot.className = 'status-dot warning';
+                    if (text) text.textContent = 'Warning';
                 } else if (isActive) {
-                    indicator.className = 'status-indicator active';
-                    dot.className = 'status-dot active';
-                    text.textContent = 'Active';
+                    if (dot) dot.className = 'status-dot active';
+                    if (text) text.textContent = 'Active';
                 } else {
-                    indicator.className = 'status-indicator inactive';
-                    dot.className = 'status-dot inactive';
-                    text.textContent = 'Inactive';
+                    if (dot) dot.className = 'status-dot inactive';
+                    if (text) text.textContent = 'Inactive';
                 }
             }
         }
@@ -238,20 +318,100 @@
             ).join('');
         }
 
+        function updateMiniChart(chartId, values, maxValue, minValue) {
+            const chartContainer = document.getElementById(chartId);
+            if (!chartContainer) return;
+            
+            const bars = chartContainer.querySelectorAll('.chart-bar');
+            if (!bars || bars.length === 0) return;
+            
+            // Get the last 6 values
+            const recentValues = values.slice(-6);
+            
+            // If no data, keep loading state (low opacity, default height)
+            if (!recentValues || recentValues.length === 0) {
+                bars.forEach((bar) => {
+                    bar.style.opacity = '0.4';
+                });
+                return;
+            }
+            
+            const range = maxValue - minValue || 1;
+            
+            bars.forEach((bar, index) => {
+                const value = recentValues[index];
+                
+                if (value === null || value === undefined || index >= recentValues.length) {
+                    // Keep loading state for missing values
+                    bar.style.opacity = '0.4';
+                } else {
+                    // Normalize to 0-100% height, with minimum 15%
+                    const normalizedHeight = ((value - minValue) / range) * 100;
+                    const heightPercent = Math.max(15, Math.min(100, normalizedHeight));
+                    bar.style.height = `${heightPercent}%`;
+                    bar.style.opacity = '1';
+                }
+            });
+        }
+
+        function calculateTrend(currentValue, previousValue) {
+            if (currentValue === null || previousValue === null || currentValue === undefined || previousValue === undefined) {
+                return { icon: '→', class: 'trend-stable' };
+            }
+            const diff = currentValue - previousValue;
+            // Threshold: 0.5 for temperature, 1 for humidity
+            const threshold = Math.abs(currentValue) > 50 ? 1 : 0.5;
+            
+            if (Math.abs(diff) < threshold) {
+                return { icon: '→', class: 'trend-stable' };
+            } else if (diff > 0) {
+                return { icon: '↑', class: 'trend-up' };
+            } else {
+                return { icon: '↓', class: 'trend-down' };
+            }
+        }
+
         function updateSensorDisplay(data) {
             // Temperature
             const temp = data.air_temperature_celsius;
-            document.getElementById('temperature').textContent = 
-                temp !== null ? `${temp}°C` : 'N/A';
-            const tempStatus = getTemperatureStatus(temp);
-            document.getElementById('temp-status').textContent = tempStatus.text;
+            const tempNum = temp !== null && temp !== undefined ? Number(temp) : null;
+            const tempElement = document.getElementById('temperature');
+            if (tempElement) {
+                tempElement.textContent = tempNum !== null && !isNaN(tempNum) ? `${tempNum}°C` : 'N/A';
+            }
+            const tempStatus = getTemperatureStatus(tempNum);
+            const tempStatusElement = document.getElementById('temp-status');
+            if (tempStatusElement) {
+                tempStatusElement.textContent = tempStatus.text;
+            }
+            
+            // Update temperature progress bar (normalize to 0-100% based on typical range 0-50°C)
+            if (tempNum !== null && !isNaN(tempNum)) {
+                const tempPercent = Math.min(100, Math.max(0, (tempNum / 50) * 100));
+                updateProgressBar('temp-bar', tempPercent, 'good');
+            } else {
+                updateProgressBar('temp-bar', 0, '');
+            }
             
             // Humidity
             const humidity = data.air_humidity_percent;
-            document.getElementById('humidity').textContent = 
-                humidity !== null ? `${humidity}%` : 'N/A';
-            const humidityStatus = getHumidityStatus(humidity);
-            document.getElementById('humidity-status').textContent = humidityStatus.text;
+            const humidityNum = humidity !== null && humidity !== undefined ? Number(humidity) : null;
+            const humidityElement = document.getElementById('humidity');
+            if (humidityElement) {
+                humidityElement.textContent = humidityNum !== null && !isNaN(humidityNum) ? `${humidityNum.toFixed(1)}%` : 'N/A';
+            }
+            const humidityStatus = getHumidityStatus(humidityNum);
+            const humidityStatusElement = document.getElementById('humidity-status');
+            if (humidityStatusElement) {
+                humidityStatusElement.textContent = humidityStatus.text;
+            }
+            
+            // Update humidity progress bar (already in percentage)
+            if (humidityNum !== null && !isNaN(humidityNum)) {
+                updateProgressBar('humidity-bar', humidityNum, 'good');
+            } else {
+                updateProgressBar('humidity-bar', 0, '');
+            }
             
             // Soil Moisture Sensors
             const soil1 = data.soil_moisture_1_percent;
@@ -260,18 +420,30 @@
             
             [soil1, soil2, soil3].forEach((val, idx) => {
                 const num = idx + 1;
-                document.getElementById(`soil${num}`).textContent = 
-                    val !== null ? `${val}%` : 'N/A';
+                const soilNum = val !== null && val !== undefined ? Number(val) : null;
+                const soilElement = document.getElementById(`soil${num}`);
+                if (soilElement) {
+                    soilElement.textContent = soilNum !== null && !isNaN(soilNum) ? `${soilNum.toFixed(2)}%` : 'N/A';
+                }
                 
-                const soilStatus = getSoilMoistureStatus(val);
-                document.getElementById(`soil${num}-status`).textContent = soilStatus.text;
-                updateProgressBar(`soil${num}-bar`, val, soilStatus.class);
+                const soilStatus = getSoilMoistureStatus(soilNum);
+                const soilStatusElement = document.getElementById(`soil${num}-status`);
+                if (soilStatusElement) {
+                    soilStatusElement.textContent = soilStatus.text;
+                }
+                updateProgressBar(`soil${num}-bar`, soilNum !== null && !isNaN(soilNum) ? soilNum : 0, soilStatus.class);
                 
                 // Update card border color
                 const card = document.getElementById(`soil${num}-card`);
-                if (soilStatus.class === 'low') card.className = 'sensor-card danger';
-                else if (soilStatus.class === 'medium') card.className = 'sensor-card warning';
-                else card.className = 'sensor-card';
+                if (card) {
+                    if (soilStatus.class === 'low') {
+                        card.className = 'widget-card sensor-card danger';
+                    } else if (soilStatus.class === 'medium') {
+                        card.className = 'widget-card sensor-card warning';
+                    } else {
+                        card.className = 'widget-card sensor-card';
+                    }
+                }
             });
             
             // System Status
@@ -354,6 +526,34 @@
                 return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             });
             
+            // Update trend arrows for temperature and humidity
+            const tempValues = historyData.map(d => d.air_temperature_celsius).filter(v => v !== null && v !== undefined);
+            const humidityValues = historyData.map(d => d.air_humidity_percent).filter(v => v !== null && v !== undefined);
+            
+            // Update trend arrow for temperature
+            if (tempValues.length >= 2) {
+                const currentTemp = tempValues[tempValues.length - 1];
+                const previousTemp = tempValues[tempValues.length - 2];
+                const trend = calculateTrend(currentTemp, previousTemp);
+                const trendIcon = document.querySelector('#temp-card .trend-icon');
+                if (trendIcon) {
+                    trendIcon.textContent = trend.icon;
+                    trendIcon.className = `trend-icon ${trend.class}`;
+                }
+            }
+            
+            // Update trend arrow for humidity
+            if (humidityValues.length >= 2) {
+                const currentHumidity = humidityValues[humidityValues.length - 1];
+                const previousHumidity = humidityValues[humidityValues.length - 2];
+                const trend = calculateTrend(currentHumidity, previousHumidity);
+                const trendIcon = document.querySelector('#humidity-card .trend-icon');
+                if (trendIcon) {
+                    trendIcon.textContent = trend.icon;
+                    trendIcon.className = `trend-icon ${trend.class}`;
+                }
+            }
+            
             if (soilChart) {
                 soilChart.data.labels = labels;
                 soilChart.data.datasets[0].data = historyData.map(d => d.soil_moisture_1_percent);
@@ -424,7 +624,63 @@
             }
         }
 
+        // Mobile menu toggle and initialization
         document.addEventListener('DOMContentLoaded', () => {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('active');
+                });
+            }
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && 
+                    !sidebar.contains(e.target) && 
+                    !mobileMenuToggle.contains(e.target) &&
+                    sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                }
+            });
+            
+            // Navigation item clicks
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const section = this.getAttribute('data-section');
+                    
+                    // Update active state
+                    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Handle special navigation cases
+                    if (section === 'chatbot') {
+                        window.location.href = 'chatbot.html';
+                        return;
+                    }
+                    
+                    if (section === 'dashboard') {
+                        // Scroll to top of dashboard
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+                    
+                    // Scroll to section if it exists
+                    const targetSection = document.getElementById(`${section}-section`);
+                    if (targetSection) {
+                        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        // If section not found, try to scroll to dashboard top
+                        if (section !== 'reports') {
+                            console.warn(`Section "${section}-section" not found`);
+                        }
+                    }
+                });
+            });
+            
             const token = localStorage.getItem('userToken');
             const role = localStorage.getItem('userRole');
 
@@ -433,11 +689,256 @@
                 window.location.href = 'login.html';
                 return;
             }
+            
+            // Set user avatar and name
+            const userAvatar = document.getElementById('user-avatar');
+            const userName = document.getElementById('user-name');
+            const userRole = document.getElementById('user-role');
+            
+            if (userAvatar) userAvatar.textContent = 'A';
+            if (userName) userName.textContent = 'Admin User';
+            if (userRole) userRole.textContent = 'Administrator';
 
             initializeCharts();
             fetchSensorData();
             setInterval(fetchSensorData, 30000); // Update every 30 seconds
+            
+            // Chatbox Widget Functionality
+            const floatingChatbotBtn = document.getElementById('floatingChatbotBtn');
+            const chatboxWidget = document.getElementById('chatboxWidget');
+            const chatboxClose = document.getElementById('chatboxClose');
+            const chatboxOverlay = document.getElementById('chatboxOverlay');
+            const chatboxInput = document.getElementById('chatboxInput');
+            const chatboxSendBtn = document.getElementById('chatboxSendBtn');
+            const chatboxMessages = document.getElementById('chatboxMessages');
+            const chatboxExamples = document.getElementById('chatboxExamples');
+            
+            // Open chatbox
+            if (floatingChatbotBtn) {
+                floatingChatbotBtn.addEventListener('click', () => {
+                    chatboxWidget.classList.add('active');
+                    chatboxOverlay.classList.add('active');
+                    chatboxInput.focus();
+                });
+            }
+            
+            // Close chatbox
+            const closeChatbox = () => {
+                chatboxWidget.classList.remove('active');
+                chatboxOverlay.classList.remove('active');
+            };
+            
+            if (chatboxClose) {
+                chatboxClose.addEventListener('click', closeChatbox);
+            }
+            
+            if (chatboxOverlay) {
+                chatboxOverlay.addEventListener('click', closeChatbox);
+            }
+            
+            // Example question clicks
+            if (chatboxExamples) {
+                chatboxExamples.querySelectorAll('.example-question').forEach(example => {
+                    example.addEventListener('click', () => {
+                        const question = example.getAttribute('data-question');
+                        if (question) {
+                            chatboxInput.value = question;
+                            sendChatboxMessage(question);
+                        }
+                    });
+                });
+            }
+            
+            // Send message
+            const sendChatboxMessage = (message) => {
+                if (!message.trim()) return;
+                
+                // Add user message
+                addChatboxMessage(message, false);
+                
+                // Hide examples
+                if (chatboxExamples) {
+                    chatboxExamples.style.display = 'none';
+                }
+                
+                // Clear input
+                if (chatboxInput) {
+                    chatboxInput.value = '';
+                }
+                
+                // Show loading
+                const loadingId = addChatboxMessage('Thinking...', true, true);
+                
+                // Send to API (using same webhook as full chatbot)
+                const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot';
+                
+                fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        question: message,
+                        message: message 
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Remove loading message
+                    const loadingMsg = document.getElementById(loadingId);
+                    if (loadingMsg) loadingMsg.remove();
+                    
+                    // Handle different response formats
+                    let responseText = '';
+                    if (data.response) {
+                        responseText = data.response;
+                    } else if (data.message) {
+                        responseText = data.message;
+                    } else if (data.answer) {
+                        responseText = data.answer;
+                    } else if (typeof data === 'string') {
+                        responseText = data;
+                    } else {
+                        responseText = 'I apologize, but I couldn\'t process your request. Please try again.';
+                    }
+                    
+                    // Add bot response
+                    addChatboxMessage(responseText, true);
+                })
+                .catch(error => {
+                    // Remove loading message
+                    const loadingMsg = document.getElementById(loadingId);
+                    if (loadingMsg) loadingMsg.remove();
+                    
+                    addChatboxMessage('Sorry, I encountered an error. Please try again later.', true);
+                    console.error('Chatbot error:', error);
+                });
+            };
+            
+            // Escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
+            // Add message to chatbox
+            const addChatboxMessage = (text, isBot = false, isLoading = false) => {
+                const messageId = 'msg-' + Date.now();
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chatbox-message ${isBot ? 'bot-message' : 'user-message'}`;
+                messageDiv.id = messageId;
+                
+                if (isBot) {
+                    messageDiv.innerHTML = `
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="message-text">${isLoading ? 'Thinking...' : escapeHtml(text)}</div>
+                        </div>
+                    `;
+                } else {
+                    messageDiv.innerHTML = `
+                        <div class="message-content">
+                            <div class="message-text">${escapeHtml(text)}</div>
+                        </div>
+                    `;
+                }
+                
+                if (chatboxMessages) {
+                    chatboxMessages.appendChild(messageDiv);
+                    chatboxMessages.scrollTop = chatboxMessages.scrollHeight;
+                }
+                
+                return messageId;
+            };
+            
+            // Send button click
+            if (chatboxSendBtn) {
+                chatboxSendBtn.addEventListener('click', () => {
+                    if (chatboxInput && chatboxInput.value.trim()) {
+                        sendChatboxMessage(chatboxInput.value);
+                    }
+                });
+            }
+            
+            // Enter key to send
+            if (chatboxInput) {
+                chatboxInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && chatboxInput.value.trim()) {
+                        sendChatboxMessage(chatboxInput.value);
+                    }
+                });
+            }
         });
     </script>
+    
+    <!-- Floating Chatbot Button -->
+    <button class="floating-chatbot-btn" id="floatingChatbotBtn" aria-label="Open AI Chatbot">
+        <span class="chatbot-icon">💬</span>
+        <span class="chatbot-tooltip">AI Chatbot</span>
+    </button>
+    
+    <!-- Chatbox Widget -->
+    <div class="chatbox-widget" id="chatboxWidget">
+        <div class="chatbox-header">
+            <div class="chatbox-header-content">
+                <div class="chatbox-avatar">🤖</div>
+                <div class="chatbox-title-group">
+                    <h3 class="chatbox-title">AI Irrigation Chatbot</h3>
+                    <p class="chatbox-subtitle">Ask about your irrigation system</p>
+                </div>
+            </div>
+            <button class="chatbox-close" id="chatboxClose" aria-label="Close chatbox">×</button>
+        </div>
+        
+        <div class="chatbox-messages" id="chatboxMessages">
+            <div class="chatbox-message bot-message">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="message-text">
+                        Hello! I'm your AI irrigation assistant. I can help you with:
+                        <ul>
+                            <li>Current soil conditions and sensor readings</li>
+                            <li>Crop suitability based on environmental data</li>
+                            <li>Historical sensor data analysis</li>
+                            <li>Irrigation schedule recommendations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chatbox-examples" id="chatboxExamples">
+            <div class="example-question" data-question="What is the current soil moisture level?">
+                What is the current soil moisture level?
+            </div>
+            <div class="example-question" data-question="What crops are suitable for the current conditions?">
+                What crops are suitable?
+            </div>
+            <div class="example-question" data-question="When should I water my plants?">
+                When should I water my plants?
+            </div>
+        </div>
+        
+        <div class="chatbox-input-container">
+            <input 
+                type="text" 
+                id="chatboxInput" 
+                class="chatbox-input" 
+                placeholder="Ask me about your irrigation system..."
+                autocomplete="off"
+            />
+            <button id="chatboxSendBtn" class="chatbox-send-btn" aria-label="Send message">
+                <span class="send-icon">📤</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="chatbox-overlay" id="chatboxOverlay"></div>
 </body>
 </html>

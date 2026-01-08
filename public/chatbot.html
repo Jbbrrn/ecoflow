@@ -3,125 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Irrigation Chatbot - Ecoflow</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/chatbot.css">
+    <title>AI Irrigation Chatbot - Eco Flow</title>
+    <link rel="stylesheet" href="css/dashboard-new.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="dashboard-wrapper">
-        <header class="header">
-            <h1>🤖 AI Irrigation Chatbot</h1>
-            <p class="header-subtitle">Ask questions about your irrigation system, soil conditions, and crop suitability</p>
+<body class="chatbot-fullscreen">
+    <div class="chatbot-fullscreen-wrapper">
+        <header class="chatbot-fullscreen-header">
+            <div class="chatbot-header-content">
+                <div class="chatbot-header-icon">🤖</div>
+                <div class="chatbot-header-text">
+                    <h1 class="chatbot-header-title">AI Irrigation Chatbot</h1>
+                    <p class="chatbot-header-subtitle">Ask questions about your irrigation system, soil conditions, and crop suitability</p>
+                </div>
+            </div>
+            <a href="#" id="chatbotBackBtn" class="chatbot-back-btn">← Back to Dashboard</a>
         </header>
 
-        <section class="chatbot-section">
-            <div class="chatbot-container">
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message bot-message">
-                        <div class="message-avatar">🤖</div>
-                        <div class="message-content">
-                            <div class="message-text">
-                                Hello! I'm your AI irrigation assistant. I can help you with:
-                                <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                                    <li>Current soil conditions and sensor readings</li>
-                                    <li>Crop suitability based on environmental data</li>
-                                    <li>Historical sensor data analysis</li>
-                                    <li>Irrigation schedule recommendations</li>
-                                </ul>
-                                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--gray-600);">
-                                    <strong>Note:</strong> I can only answer questions related to irrigation systems, soil conditions, supported crops, and recorded sensor data.
-                                </p>
-                            </div>
-                            <div class="message-time">Just now</div>
+        <div class="chatbot-fullscreen-container">
+            <div class="chatbot-fullscreen-messages" id="chatMessages">
+                <div class="chatbot-fullscreen-message bot-message">
+                    <div class="message-avatar-large">🤖</div>
+                    <div class="message-content-large">
+                        <div class="message-text-large">
+                            Hello! I'm your AI irrigation assistant. I can help you with:
+                            <ul>
+                                <li>Current soil conditions and sensor readings</li>
+                                <li>Crop suitability based on environmental data</li>
+                                <li>Historical sensor data analysis</li>
+                                <li>Irrigation schedule recommendations</li>
+                            </ul>
+                            <p class="message-note">
+                                <strong>Note:</strong> I can only answer questions related to irrigation systems, soil conditions, supported crops, and recorded sensor data.
+                            </p>
                         </div>
-                    </div>
-                </div>
-
-                <div class="chat-input-container">
-                    <div class="chat-input-wrapper">
-                        <input 
-                            type="text" 
-                            id="chatInput" 
-                            class="chat-input" 
-                            placeholder="Ask me about your irrigation system..."
-                            autocomplete="off"
-                        />
-                        <button id="sendButton" class="send-button" title="Send message">
-                            <span class="send-icon">📤</span>
-                        </button>
-                    </div>
-                    <div class="chat-input-hint">
-                        Press Enter to send • Try: "What's the current soil moisture?" or "What crops are suitable?"
+                        <div class="message-time-large">Just now</div>
                     </div>
                 </div>
             </div>
-        </section>
 
-        <div class="chatbot-info">
-            <h3>💡 Example Questions</h3>
-            <div class="example-questions">
-                <button class="example-question-btn" data-question="What is the current soil moisture level?">
+            <div class="chatbot-fullscreen-examples" id="chatbotExamples">
+                <div class="example-question-large" data-question="What is the current soil moisture level?">
                     What is the current soil moisture level?
-                </button>
-                <button class="example-question-btn" data-question="What crops are suitable for the current conditions?">
+                </div>
+                <div class="example-question-large" data-question="What crops are suitable for the current conditions?">
                     What crops are suitable for the current conditions?
-                </button>
-                <button class="example-question-btn" data-question="Show me the soil moisture trends over the last 24 hours">
+                </div>
+                <div class="example-question-large" data-question="Show me the soil moisture trends over the last 24 hours">
                     Show me the soil moisture trends over the last 24 hours
-                </button>
-                <button class="example-question-btn" data-question="When should I water my plants?">
+                </div>
+                <div class="example-question-large" data-question="When should I water my plants?">
                     When should I water my plants?
-                </button>
-                <button class="example-question-btn" data-question="What is the current temperature and humidity?">
+                </div>
+                <div class="example-question-large" data-question="What is the current temperature and humidity?">
                     What is the current temperature and humidity?
-                </button>
+                </div>
             </div>
-        </div>
 
+            <div class="chatbot-fullscreen-input-container">
+                <div class="chatbot-input-wrapper-large">
+                    <input 
+                        type="text" 
+                        id="chatInput" 
+                        class="chatbot-input-large" 
+                        placeholder="Ask me about your irrigation system..."
+                        autocomplete="off"
+                    />
+                    <button id="sendButton" class="chatbot-send-btn-large" title="Send message">
+                        <span class="send-icon-large">📤</span>
+                    </button>
+                </div>
+                <div class="chatbot-input-hint-large">
+                    Press Enter to send • Try: "What's the current soil moisture?" or "What crops are suitable?"
+                </div>
+            </div>
         <div style="text-align: center; margin-top: var(--space-xl);">
             <button id="backToDashboardBtn" class="btn-secondary">
                 ← Back to Dashboard
             </button>
         </div>
-
-        <footer class="footer">
-            <p>© 2025 Ecoflow - Smart Garden Monitoring System | AI Chatbot (Academic Thesis Project)</p>
-        </footer>
     </div>
 
     <script>
         // Configuration - Update this with your n8n webhook URL
-        const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot'; // e.g., 'https://your-n8n-instance.com/webhook/chatbot'
+        const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot';
+
+        // Initialize page: check authentication and set back button
+        document.addEventListener('DOMContentLoaded', () => {
+            const userToken = localStorage.getItem('userToken');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Check if user is logged in
+            if (!userToken) {
+                alert('Access Denied. You must be logged in to view this page.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Set back button destination based on user role
+            const backBtn = document.getElementById('chatbotBackBtn');
+            if (userRole === 'admin') {
+                backBtn.href = 'admin_dashboard.html';
+            } else if (userRole === 'gardener') {
+                backBtn.href = 'gardener_dashboard.html';
+            } else {
+                // Default to login if role is unknown
+                backBtn.href = 'login.html';
+            }
+            
+            // Focus input
+            chatInput.focus();
+        });
 
         const chatMessages = document.getElementById('chatMessages');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
+        const chatbotExamples = document.getElementById('chatbotExamples');
 
         // Add message to chat
         function addMessage(text, isBot = false, isLoading = false) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isBot ? 'bot-message' : 'user-message'} ${isLoading ? 'loading' : ''}`;
+            messageDiv.className = `chatbot-fullscreen-message ${isBot ? 'bot-message' : 'user-message'}`;
             
             if (isBot) {
                 messageDiv.innerHTML = `
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-content">
-                        <div class="message-text">${isLoading ? '<span class="typing-indicator"></span>' : escapeHtml(text)}</div>
-                        ${!isLoading ? `<div class="message-time">${getCurrentTime()}</div>` : ''}
+                    <div class="message-avatar-large">🤖</div>
+                    <div class="message-content-large">
+                        <div class="message-text-large">${isLoading ? '<span class="typing-indicator"></span>' : escapeHtml(text)}</div>
+                        ${!isLoading ? `<div class="message-time-large">${getCurrentTime()}</div>` : ''}
                     </div>
                 `;
             } else {
                 messageDiv.innerHTML = `
-                    <div class="message-content">
-                        <div class="message-text">${escapeHtml(text)}</div>
-                        <div class="message-time">${getCurrentTime()}</div>
+                    <div class="message-content-large">
+                        <div class="message-text-large">${escapeHtml(text)}</div>
+                        <div class="message-time-large">${getCurrentTime()}</div>
                     </div>
                 `;
             }
             
             chatMessages.appendChild(messageDiv);
             scrollToBottom();
+            
+            // Hide examples after first message
+            if (chatbotExamples && !isBot) {
+                chatbotExamples.style.display = 'none';
+            }
             
             return messageDiv;
         }
@@ -175,7 +204,8 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        question: question
+                        question: question,
+                        message: question
                     })
                 });
 
@@ -188,12 +218,22 @@
                 // Remove loading message
                 loadingMessage.remove();
 
-                // Add bot response
+                // Handle different response formats
+                let responseText = '';
                 if (data.response) {
-                    addMessage(data.response, true);
+                    responseText = data.response;
+                } else if (data.message) {
+                    responseText = data.message;
+                } else if (data.answer) {
+                    responseText = data.answer;
+                } else if (typeof data === 'string') {
+                    responseText = data;
                 } else {
-                    addMessage('I received your question, but I\'m having trouble processing it right now. Please try again.', true);
+                    responseText = 'I received your question, but I\'m having trouble processing it right now. Please try again.';
                 }
+                
+                // Add bot response
+                addMessage(responseText, true);
 
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -221,36 +261,14 @@
         });
 
         // Example question buttons
-        document.querySelectorAll('.example-question-btn').forEach(btn => {
+        document.querySelectorAll('.example-question-large').forEach(btn => {
             btn.addEventListener('click', () => {
                 const question = btn.getAttribute('data-question');
                 chatInput.value = question;
-                chatInput.focus();
-                // Optionally auto-send
-                // sendMessage();
+                sendMessage();
             });
         });
 
-        // Focus input on load and configure back button redirect based on role
-        document.addEventListener('DOMContentLoaded', () => {
-            chatInput.focus();
-
-            const backBtn = document.getElementById('backToDashboardBtn');
-            if (backBtn) {
-                backBtn.addEventListener('click', () => {
-                    const role = localStorage.getItem('userRole');
-
-                    if (role === 'admin') {
-                        window.location.href = 'admin_dashboard.html';
-                    } else if (role === 'gardener') {
-                        window.location.href = 'gardener_dashboard.html';
-                    } else {
-                        // Fallback: if no role is set, go to login
-                        window.location.href = 'login.html';
-                    }
-                });
-            }
-        });
     </script>
 </body>
 </html>
