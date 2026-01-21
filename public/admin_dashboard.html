@@ -158,14 +158,14 @@
                                 </div>
                             </div>
                             <div class="status-item">
-                                <div class="status-label">Water Level (Low)</div>
+                                <div class="status-label">Water Level Status</div>
                                 <div class="status-indicator" id="water-low-status">
                                     <span class="status-dot"></span>
                                     <span class="status-text">--</span>
                                 </div>
                             </div>
                             <div class="status-item">
-                                <div class="status-label">Water Level (High)</div>
+                                <div class="status-label">Water Tank Level</div>
                                 <div class="status-indicator" id="water-high-status">
                                     <span class="status-dot"></span>
                                     <span class="status-text">--</span>
@@ -194,6 +194,73 @@
                     <div class="chart-container">
                         <canvas id="environmentChart"></canvas>
                     </div>
+                </div>
+                
+                <!-- Reports Section -->
+                <div class="dashboard-section" id="reports-section">
+                    <h2 class="section-title">Reports & Analytics</h2>
+                    <p class="section-description">Generate comprehensive reports on system activity, device commands, and sensor data.</p>
+                    
+                    <!-- Report Type Selector -->
+                    <div class="reports-controls">
+                        <div class="report-type-selector">
+                            <button class="report-type-btn active" data-report="device-commands" onclick="selectReportType('device-commands')">
+                                🔧 Device Commands
+                            </button>
+                            <button class="report-type-btn" data-report="user-activity" onclick="selectReportType('user-activity')">
+                                👥 User Activity
+                            </button>
+                            <button class="report-type-btn" data-report="sensor-summary" onclick="selectReportType('sensor-summary')">
+                                📊 Sensor Summary
+                            </button>
+                            <button class="report-type-btn" data-report="system-health" onclick="selectReportType('system-health')">
+                                💚 System Health
+                            </button>
+                            <button class="report-type-btn" data-report="water-usage" onclick="selectReportType('water-usage')">
+                                💧 Water Usage
+                            </button>
+                        </div>
+                        
+                        <!-- Date Range Filters -->
+                        <div class="report-filters" id="reportFilters">
+                            <div class="filter-group">
+                                <label for="reportStartDate">Start Date:</label>
+                                <input type="date" id="reportStartDate" class="filter-input">
+                            </div>
+                            <div class="filter-group">
+                                <label for="reportEndDate">End Date:</label>
+                                <input type="date" id="reportEndDate" class="filter-input">
+                            </div>
+                            <div class="filter-group" id="deviceFilterGroup" style="display: none;">
+                                <label for="reportDevice">Device:</label>
+                                <select id="reportDevice" class="filter-input">
+                                    <option value="all">All Devices</option>
+                                    <option value="pump">Pump</option>
+                                    <option value="valve">Valve</option>
+                                </select>
+                            </div>
+                            <div class="filter-group" id="statusFilterGroup" style="display: none;">
+                                <label for="reportStatus">Status:</label>
+                                <select id="reportStatus" class="filter-input">
+                                    <option value="all">All Statuses</option>
+                                    <option value="SUCCESS">Success</option>
+                                    <option value="FAILED">Failed</option>
+                                    <option value="PENDING">Pending</option>
+                                </select>
+                            </div>
+                            <button class="btn-primary" onclick="generateReport()">Generate Report</button>
+                            <button class="btn-secondary" onclick="exportReport()">Export CSV</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Report Loading Indicator -->
+                    <div id="reportLoading" class="report-loading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>Generating report...</p>
+                    </div>
+                    
+                    <!-- Report Results Container -->
+                    <div id="reportResults" class="report-results"></div>
                 </div>
                 
                 <p id="last-update" class="last-update"></p>
@@ -275,6 +342,34 @@
                 } else {
                     if (dot) dot.className = 'status-dot inactive';
                     if (text) text.textContent = 'Inactive';
+                }
+            }
+        }
+
+        function updateWaterLevelStatus(elementId, isLow, isHigh = false) {
+            const indicator = document.getElementById(elementId);
+            if (indicator) {
+                const dot = indicator.querySelector('.status-dot');
+                const text = indicator.querySelector('.status-text') || indicator.querySelector('span:last-child');
+                
+                if (elementId === 'water-low-status') {
+                    // For low water level: 1 = Low (warning), 0 = OK
+                    if (isLow === 1) {
+                        if (dot) dot.className = 'status-dot warning';
+                        if (text) text.textContent = 'Low';
+                    } else {
+                        if (dot) dot.className = 'status-dot active';
+                        if (text) text.textContent = 'OK';
+                    }
+                } else if (elementId === 'water-high-status') {
+                    // For high water level: 1 = Full, 0 = OK
+                    if (isHigh === 1) {
+                        if (dot) dot.className = 'status-dot active';
+                        if (text) text.textContent = 'Full';
+                    } else {
+                        if (dot) dot.className = 'status-dot inactive';
+                        if (text) text.textContent = 'OK';
+                    }
                 }
             }
         }
@@ -449,8 +544,8 @@
             // System Status
             updateStatusIndicator('valve-status', data.valve_status === 1);
             updateStatusIndicator('pump-status', data.pump_status === 1);
-            updateStatusIndicator('water-low-status', data.water_level_low_status === 1, data.water_level_low_status === 1);
-            updateStatusIndicator('water-high-status', data.water_level_high_status === 1);
+            updateWaterLevelStatus('water-low-status', data.water_level_low_status);
+            updateWaterLevelStatus('water-high-status', null, data.water_level_high_status);
             
             // Last update
             if (data.timestamp) {
@@ -482,7 +577,7 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         plugins: {
-                            title: { display: true, text: 'Soil Moisture Trends (%)', font: { size: 16 } },
+                            title: { display: true, text: 'Soil Moisture Trends (%) - Hourly Average', font: { size: 16 } },
                             legend: { display: true }
                         },
                         scales: {
@@ -506,27 +601,97 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         plugins: {
-                            title: { display: true, text: 'Temperature & Humidity Trends', font: { size: 16 } },
+                            title: { display: true, text: 'Temperature & Humidity Trends - Hourly Average', font: { size: 16 } },
                             legend: { display: true }
                         },
                         scales: {
                             y: { type: 'linear', position: 'left', title: { display: true, text: 'Temperature (°C)' } },
-                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } }
+                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    maxTicksLimit: 12
+                                }
+                            }
                         }
                     }
                 });
             }
         }
 
+        function aggregateByHour(data) {
+            // Group data by hour
+            const hourlyData = {};
+            
+            data.forEach(d => {
+                const date = new Date(d.timestamp);
+                // Create hour key: YYYY-MM-DD-HH
+                const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}`;
+                
+                if (!hourlyData[hourKey]) {
+                    hourlyData[hourKey] = {
+                        timestamp: d.timestamp,
+                        hourLabel: date.toLocaleString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        }),
+                        soil1: [],
+                        soil2: [],
+                        soil3: [],
+                        temperature: [],
+                        humidity: []
+                    };
+                }
+                
+                // Collect values for averaging
+                if (d.soil_moisture_1_percent !== null && d.soil_moisture_1_percent !== undefined) {
+                    hourlyData[hourKey].soil1.push(Number(d.soil_moisture_1_percent));
+                }
+                if (d.soil_moisture_2_percent !== null && d.soil_moisture_2_percent !== undefined) {
+                    hourlyData[hourKey].soil2.push(Number(d.soil_moisture_2_percent));
+                }
+                if (d.soil_moisture_3_percent !== null && d.soil_moisture_3_percent !== undefined) {
+                    hourlyData[hourKey].soil3.push(Number(d.soil_moisture_3_percent));
+                }
+                if (d.air_temperature_celsius !== null && d.air_temperature_celsius !== undefined) {
+                    hourlyData[hourKey].temperature.push(Number(d.air_temperature_celsius));
+                }
+                if (d.air_humidity_percent !== null && d.air_humidity_percent !== undefined) {
+                    hourlyData[hourKey].humidity.push(Number(d.air_humidity_percent));
+                }
+            });
+            
+            // Calculate averages and create sorted array
+            const aggregated = Object.keys(hourlyData)
+                .sort()
+                .map(key => {
+                    const hour = hourlyData[key];
+                    return {
+                        timestamp: hour.timestamp,
+                        label: hour.hourLabel,
+                        soil1: hour.soil1.length > 0 ? hour.soil1.reduce((a, b) => a + b, 0) / hour.soil1.length : null,
+                        soil2: hour.soil2.length > 0 ? hour.soil2.reduce((a, b) => a + b, 0) / hour.soil2.length : null,
+                        soil3: hour.soil3.length > 0 ? hour.soil3.reduce((a, b) => a + b, 0) / hour.soil3.length : null,
+                        temperature: hour.temperature.length > 0 ? hour.temperature.reduce((a, b) => a + b, 0) / hour.temperature.length : null,
+                        humidity: hour.humidity.length > 0 ? hour.humidity.reduce((a, b) => a + b, 0) / hour.humidity.length : null
+                    };
+                });
+            
+            return aggregated;
+        }
+
         function updateCharts(historyData) {
             if (!historyData || historyData.length === 0) return;
             
-            const labels = historyData.map(d => {
-                const date = new Date(d.timestamp);
-                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            });
+            // Aggregate data by hour for cleaner charts
+            const hourlyData = aggregateByHour(historyData);
             
-            // Update trend arrows for temperature and humidity
+            const labels = hourlyData.map(d => d.label);
+            
+            // Update trend arrows for temperature and humidity (use original data for trends)
             const tempValues = historyData.map(d => d.air_temperature_celsius).filter(v => v !== null && v !== undefined);
             const humidityValues = historyData.map(d => d.air_humidity_percent).filter(v => v !== null && v !== undefined);
             
@@ -556,16 +721,16 @@
             
             if (soilChart) {
                 soilChart.data.labels = labels;
-                soilChart.data.datasets[0].data = historyData.map(d => d.soil_moisture_1_percent);
-                soilChart.data.datasets[1].data = historyData.map(d => d.soil_moisture_2_percent);
-                soilChart.data.datasets[2].data = historyData.map(d => d.soil_moisture_3_percent);
+                soilChart.data.datasets[0].data = hourlyData.map(d => d.soil1);
+                soilChart.data.datasets[1].data = hourlyData.map(d => d.soil2);
+                soilChart.data.datasets[2].data = hourlyData.map(d => d.soil3);
                 soilChart.update();
             }
             
             if (environmentChart) {
                 environmentChart.data.labels = labels;
-                environmentChart.data.datasets[0].data = historyData.map(d => d.air_temperature_celsius);
-                environmentChart.data.datasets[1].data = historyData.map(d => d.air_humidity_percent);
+                environmentChart.data.datasets[0].data = hourlyData.map(d => d.temperature);
+                environmentChart.data.datasets[1].data = hourlyData.map(d => d.humidity);
                 environmentChart.update();
             }
         }
@@ -820,11 +985,69 @@
                 });
             };
             
-            // Escape HTML to prevent XSS
+            // Escape HTML to prevent XSS (for user messages)
             const escapeHtml = (text) => {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
+            };
+            
+            // Clean and format HTML response from bot (remove inline styles, convert to clean HTML)
+            const cleanHtmlResponse = (html) => {
+                if (!html) return '';
+                
+                // Create a temporary div to parse HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Remove inline styles from all elements
+                const allElements = tempDiv.querySelectorAll('*');
+                allElements.forEach(el => {
+                    el.removeAttribute('style');
+                });
+                
+                // Convert <br> tags to proper line breaks
+                const brTags = tempDiv.querySelectorAll('br');
+                brTags.forEach(br => {
+                    br.replaceWith(document.createTextNode('\n'));
+                });
+                
+                // Get text content and preserve line breaks
+                let text = tempDiv.textContent || tempDiv.innerText || '';
+                
+                // Convert HTML tags to plain text formatting
+                // Handle <strong> and <b> tags
+                text = text.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+                text = text.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+                
+                // Handle <p> tags - add line breaks
+                text = text.replace(/<p[^>]*>/gi, '\n');
+                text = text.replace(/<\/p>/gi, '\n');
+                
+                // Handle <br> and <br/> tags
+                text = text.replace(/<br\s*\/?>/gi, '\n');
+                
+                // Remove remaining HTML tags
+                text = text.replace(/<[^>]+>/g, '');
+                
+                // Decode HTML entities
+                text = text.replace(/&nbsp;/g, ' ');
+                text = text.replace(/&amp;/g, '&');
+                text = text.replace(/&lt;/g, '<');
+                text = text.replace(/&gt;/g, '>');
+                text = text.replace(/&quot;/g, '"');
+                
+                // Clean up multiple line breaks
+                text = text.replace(/\n{3,}/g, '\n\n');
+                text = text.trim();
+                
+                // Convert **text** to <strong>text</strong> for rendering
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                // Convert line breaks to <br> tags
+                text = text.replace(/\n/g, '<br>');
+                
+                return text;
             };
             
             // Add message to chatbox
@@ -835,13 +1058,16 @@
                 messageDiv.id = messageId;
                 
                 if (isBot) {
+                    // For bot messages, clean HTML and render it
+                    const cleanedText = isLoading ? 'Thinking...' : cleanHtmlResponse(text);
                     messageDiv.innerHTML = `
                         <div class="message-avatar">🤖</div>
                         <div class="message-content">
-                            <div class="message-text">${isLoading ? 'Thinking...' : escapeHtml(text)}</div>
+                            <div class="message-text">${cleanedText}</div>
                         </div>
                     `;
                 } else {
+                    // For user messages, escape HTML for security
                     messageDiv.innerHTML = `
                         <div class="message-content">
                             <div class="message-text">${escapeHtml(text)}</div>
@@ -875,6 +1101,592 @@
                 });
             }
         });
+
+        // Reports functionality
+        let currentReportType = 'device-commands';
+        let currentReportData = null;
+
+        function selectReportType(type) {
+            currentReportType = type;
+            
+            // Update button states
+            document.querySelectorAll('.report-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-report="${type}"]`).classList.add('active');
+            
+            // Show/hide relevant filters
+            const deviceFilterGroup = document.getElementById('deviceFilterGroup');
+            const statusFilterGroup = document.getElementById('statusFilterGroup');
+            
+            if (type === 'device-commands') {
+                deviceFilterGroup.style.display = 'block';
+                statusFilterGroup.style.display = 'block';
+            } else {
+                deviceFilterGroup.style.display = 'none';
+                statusFilterGroup.style.display = 'none';
+            }
+            
+            // Clear previous results
+            document.getElementById('reportResults').innerHTML = '';
+        }
+
+        async function generateReport() {
+            const token = localStorage.getItem('userToken');
+            if (!token) {
+                alert('Please login to generate reports.');
+                return;
+            }
+
+            const loadingDiv = document.getElementById('reportLoading');
+            const resultsDiv = document.getElementById('reportResults');
+            
+            loadingDiv.style.display = 'block';
+            resultsDiv.innerHTML = '';
+
+            try {
+                const startDate = document.getElementById('reportStartDate').value;
+                const endDate = document.getElementById('reportEndDate').value;
+                const device = document.getElementById('reportDevice')?.value || 'all';
+                const status = document.getElementById('reportStatus')?.value || 'all';
+
+                let url = `/api/reports/${currentReportType}?`;
+                const params = new URLSearchParams();
+                
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                if (device !== 'all') params.append('device', device);
+                if (status !== 'all') params.append('status', status);
+                
+                // Add default time ranges for reports that need them
+                if (!startDate && !endDate) {
+                    if (currentReportType === 'system-health') {
+                        params.append('days', '7');
+                    } else if (currentReportType === 'sensor-summary') {
+                        params.append('hours', '24');
+                    } else if (currentReportType === 'water-usage') {
+                        params.append('days', '7');
+                    }
+                }
+
+                url += params.toString();
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (e) {
+                        // If response isn't JSON, use the text
+                        if (errorText) errorMessage += ` - ${errorText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                currentReportData = data;
+                
+                displayReport(data, currentReportType);
+                
+            } catch (error) {
+                console.error('Error generating report:', error);
+                resultsDiv.innerHTML = `
+                    <div class="report-error">
+                        <p>❌ Error generating report: ${error.message}</p>
+                        <p>Please try again later.</p>
+                    </div>
+                `;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function displayReport(data, reportType) {
+            const resultsDiv = document.getElementById('reportResults');
+            let html = '';
+
+            switch (reportType) {
+                case 'device-commands':
+                    html = displayDeviceCommandsReport(data);
+                    break;
+                case 'user-activity':
+                    html = displayUserActivityReport(data);
+                    break;
+                case 'sensor-summary':
+                    html = displaySensorSummaryReport(data);
+                    break;
+                case 'system-health':
+                    html = displaySystemHealthReport(data);
+                    break;
+                case 'water-usage':
+                    html = displayWaterUsageReport(data);
+                    break;
+                default:
+                    html = '<p>Unknown report type.</p>';
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function displayDeviceCommandsReport(data) {
+            const { commands, summary } = data;
+            
+            let html = `
+                <div class="report-container">
+                    <h3 class="report-title">Device Commands Report</h3>
+                    
+                    <!-- Summary Cards -->
+                    <div class="report-summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-label">Total Commands</div>
+                            <div class="summary-value">${summary.total}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Success Rate</div>
+                            <div class="summary-value">${summary.success_rate}%</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Avg Execution Time</div>
+                            <div class="summary-value">${summary.avg_execution_time}s</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown by Device -->
+                    <div class="report-breakdown">
+                        <h4>By Device</h4>
+                        <div class="breakdown-list">
+                            ${Object.entries(summary.by_device).map(([device, count]) => 
+                                `<div class="breakdown-item">
+                                    <span class="breakdown-label">${device.charAt(0).toUpperCase() + device.slice(1)}:</span>
+                                    <span class="breakdown-value">${count}</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown by Status -->
+                    <div class="report-breakdown">
+                        <h4>By Status</h4>
+                        <div class="breakdown-list">
+                            ${Object.entries(summary.by_status).map(([status, count]) => 
+                                `<div class="breakdown-item">
+                                    <span class="breakdown-label">${status}:</span>
+                                    <span class="breakdown-value">${count}</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown by User -->
+                    <div class="report-breakdown">
+                        <h4>By User</h4>
+                        <div class="breakdown-list">
+                            ${Object.entries(summary.by_user).map(([user, info]) => 
+                                `<div class="breakdown-item">
+                                    <span class="breakdown-label">${info.username} (${info.role}):</span>
+                                    <span class="breakdown-value">${info.count} commands</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Commands Table -->
+                    <div class="report-table-container">
+                        <h4>Recent Commands</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Device</th>
+                                    <th>Desired State</th>
+                                    <th>Actual State</th>
+                                    <th>Status</th>
+                                    <th>User</th>
+                                    <th>Execution Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${commands.slice(0, 50).map(cmd => `
+                                    <tr>
+                                        <td>${new Date(cmd.requested_at).toLocaleString()}</td>
+                                        <td>${cmd.device}</td>
+                                        <td>${cmd.desired_state}</td>
+                                        <td>${cmd.actual_state || 'N/A'}</td>
+                                        <td><span class="status-badge status-${cmd.status.toLowerCase()}">${cmd.status}</span></td>
+                                        <td>${cmd.username || 'Unknown'}</td>
+                                        <td>${cmd.execution_time_seconds ? cmd.execution_time_seconds + 's' : 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function displayUserActivityReport(data) {
+            let html = `
+                <div class="report-container">
+                    <h3 class="report-title">User Activity Report</h3>
+                    <div class="report-table-container">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Total Commands</th>
+                                    <th>Successful</th>
+                                    <th>Failed</th>
+                                    <th>Pending</th>
+                                    <th>First Command</th>
+                                    <th>Last Command</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(user => `
+                                    <tr>
+                                        <td>${user.username}</td>
+                                        <td>${user.email}</td>
+                                        <td>${user.user_role}</td>
+                                        <td><span class="status-badge ${user.is_active ? 'status-success' : 'status-failed'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                                        <td>${user.total_commands || 0}</td>
+                                        <td>${user.successful_commands || 0}</td>
+                                        <td>${user.failed_commands || 0}</td>
+                                        <td>${user.pending_commands || 0}</td>
+                                        <td>${user.first_command ? new Date(user.first_command).toLocaleString() : 'N/A'}</td>
+                                        <td>${user.last_command ? new Date(user.last_command).toLocaleString() : 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function displaySensorSummaryReport(data) {
+            const { summary, thresholds } = data;
+            
+            let html = `
+                <div class="report-container">
+                    <h3 class="report-title">Sensor Data Summary Report</h3>
+                    
+                    <div class="report-summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-label">Total Readings</div>
+                            <div class="summary-value">${summary.total_readings || 0}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">First Reading</div>
+                            <div class="summary-value-small">${summary.first_reading ? new Date(summary.first_reading).toLocaleString() : 'N/A'}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Last Reading</div>
+                            <div class="summary-value-small">${summary.last_reading ? new Date(summary.last_reading).toLocaleString() : 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Soil Moisture Averages</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Sensor 1:</span>
+                                <span class="breakdown-value">Avg: ${Number(summary.avg_soil1 || 0).toFixed(2)}% (Min: ${Number(summary.min_soil1 || 0).toFixed(2)}%, Max: ${Number(summary.max_soil1 || 0).toFixed(2)}%)</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Sensor 2:</span>
+                                <span class="breakdown-value">Avg: ${Number(summary.avg_soil2 || 0).toFixed(2)}% (Min: ${Number(summary.min_soil2 || 0).toFixed(2)}%, Max: ${Number(summary.max_soil2 || 0).toFixed(2)}%)</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Sensor 3:</span>
+                                <span class="breakdown-value">Avg: ${Number(summary.avg_soil3 || 0).toFixed(2)}% (Min: ${Number(summary.min_soil3 || 0).toFixed(2)}%, Max: ${Number(summary.max_soil3 || 0).toFixed(2)}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Environmental Conditions</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Temperature:</span>
+                                <span class="breakdown-value">Avg: ${Number(summary.avg_temperature || 0).toFixed(2)}°C (Min: ${Number(summary.min_temperature || 0).toFixed(2)}°C, Max: ${Number(summary.max_temperature || 0).toFixed(2)}°C)</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Humidity:</span>
+                                <span class="breakdown-value">Avg: ${Number(summary.avg_humidity || 0).toFixed(2)}% (Min: ${Number(summary.min_humidity || 0).toFixed(2)}%, Max: ${Number(summary.max_humidity || 0).toFixed(2)}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>System Status</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Pump ON Count:</span>
+                                <span class="breakdown-value">${summary.pump_on_count || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Valve ON Count:</span>
+                                <span class="breakdown-value">${summary.valve_on_count || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Low Water Alerts:</span>
+                                <span class="breakdown-value">${summary.low_water_alerts || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">High Water Alerts:</span>
+                                <span class="breakdown-value">${summary.high_water_alerts || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${thresholds.low_moisture_count > 0 ? `
+                        <div class="report-alert">
+                            <h4>⚠️ Low Moisture Alerts</h4>
+                            <p>Found ${thresholds.low_moisture_count} readings with soil moisture below 20%</p>
+                            <p>First occurrence: ${thresholds.first_low_moisture ? new Date(thresholds.first_low_moisture).toLocaleString() : 'N/A'}</p>
+                            <p>Last occurrence: ${thresholds.last_low_moisture ? new Date(thresholds.last_low_moisture).toLocaleString() : 'N/A'}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function displaySystemHealthReport(data) {
+            const statusClass = data.overall_status === 'healthy' ? 'status-success' : 
+                              data.overall_status === 'warning' ? 'status-pending' : 'status-failed';
+            
+            let html = `
+                <div class="report-container">
+                    <h3 class="report-title">System Health Report (Last ${data.period_days} Days)</h3>
+                    
+                    <div class="report-summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-label">Overall Status</div>
+                            <div class="summary-value"><span class="status-badge ${statusClass}">${data.overall_status.toUpperCase()}</span></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Command Success Rate</div>
+                            <div class="summary-value">${data.commands.total_commands > 0 ? ((Number(data.commands.successful) / Number(data.commands.total_commands)) * 100).toFixed(2) : 0}%</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Hours Since Last Reading</div>
+                            <div class="summary-value">${data.sensors.hours_since_last_reading || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Command Statistics</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Total Commands:</span>
+                                <span class="breakdown-value">${data.commands.total_commands || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Successful:</span>
+                                <span class="breakdown-value">${data.commands.successful || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Failed:</span>
+                                <span class="breakdown-value">${data.commands.failed || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Pending:</span>
+                                <span class="breakdown-value">${data.commands.pending || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Avg Response Time:</span>
+                                <span class="breakdown-value">${Number(data.commands.avg_response_time || 0).toFixed(2)}s</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Sensor Data Availability</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Total Readings:</span>
+                                <span class="breakdown-value">${data.sensors.total_readings || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Days with Data:</span>
+                                <span class="breakdown-value">${data.sensors.days_with_data || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Oldest Reading:</span>
+                                <span class="breakdown-value">${data.sensors.oldest_reading ? new Date(data.sensors.oldest_reading).toLocaleString() : 'N/A'}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Newest Reading:</span>
+                                <span class="breakdown-value">${data.sensors.newest_reading ? new Date(data.sensors.newest_reading).toLocaleString() : 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Device Performance</h4>
+                        <div class="breakdown-list">
+                            ${data.devices.map(device => `
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">${device.device.charAt(0).toUpperCase() + device.device.slice(1)}:</span>
+                                    <span class="breakdown-value">
+                                        ${device.total_commands || 0} commands, 
+                                        ${device.successful_ons || 0} successful ONs, 
+                                        ${device.failures || 0} failures
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Water Level Alerts</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">Low Water Alerts:</span>
+                                <span class="breakdown-value">${data.water_alerts.low_water_count || 0}</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="breakdown-label">High Water Alerts:</span>
+                                <span class="breakdown-value">${data.water_alerts.high_water_count || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function displayWaterUsageReport(data) {
+            const { usage, commands } = data;
+            
+            let html = `
+                <div class="report-container">
+                    <h3 class="report-title">Water Usage Report</h3>
+                    
+                    <div class="report-summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-label">Pump Activations</div>
+                            <div class="summary-value">${usage.pump.total_activations || 0}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Pump Total ON Time</div>
+                            <div class="summary-value">${usage.pump.total_on_time_minutes || 0} min</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Valve Activations</div>
+                            <div class="summary-value">${usage.valve.total_activations || 0}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Valve Total ON Time</div>
+                            <div class="summary-value">${usage.valve.total_on_time_minutes || 0} min</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-breakdown">
+                        <h4>Daily Usage Breakdown</h4>
+                        <div class="breakdown-list">
+                            ${Object.entries(usage.pump.by_date).map(([date, stats]) => `
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">${date} - Pump:</span>
+                                    <span class="breakdown-value">${stats.activations} activations, ${stats.on_time_minutes} min ON time</span>
+                                </div>
+                            `).join('')}
+                            ${Object.entries(usage.valve.by_date).map(([date, stats]) => `
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">${date} - Valve:</span>
+                                    <span class="breakdown-value">${stats.activations} activations, ${stats.on_time_minutes} min ON time</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="report-table-container">
+                        <h4>Recent Commands</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Device</th>
+                                    <th>State</th>
+                                    <th>Status</th>
+                                    <th>Requested At</th>
+                                    <th>Executed At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${commands.slice(0, 50).map(cmd => `
+                                    <tr>
+                                        <td>${cmd.date}</td>
+                                        <td>${cmd.device}</td>
+                                        <td>${cmd.desired_state}</td>
+                                        <td><span class="status-badge status-${cmd.status.toLowerCase()}">${cmd.status}</span></td>
+                                        <td>${new Date(cmd.requested_at).toLocaleString()}</td>
+                                        <td>${cmd.executed_at ? new Date(cmd.executed_at).toLocaleString() : 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function exportReport() {
+            if (!currentReportData) {
+                alert('Please generate a report first before exporting.');
+                return;
+            }
+
+            // Simple CSV export for device commands report
+            if (currentReportType === 'device-commands' && currentReportData.commands) {
+                const headers = ['Time', 'Device', 'Desired State', 'Actual State', 'Status', 'User', 'Execution Time'];
+                const rows = currentReportData.commands.map(cmd => [
+                    new Date(cmd.requested_at).toLocaleString(),
+                    cmd.device,
+                    cmd.desired_state,
+                    cmd.actual_state || 'N/A',
+                    cmd.status,
+                    cmd.username || 'Unknown',
+                    cmd.execution_time_seconds ? cmd.execution_time_seconds + 's' : 'N/A'
+                ]);
+
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `device-commands-report-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert('CSV export is currently only available for Device Commands report.');
+            }
+        }
     </script>
     
     <!-- Floating Chatbot Button -->

@@ -160,14 +160,14 @@
                                 </div>
                             </div>
                             <div class="status-item">
-                                <div class="status-label">Water Level (Low)</div>
+                                <div class="status-label">Water Level Status</div>
                                 <div class="status-indicator" id="water-low-status">
                                     <span class="status-dot"></span>
                                     <span class="status-text">--</span>
                                 </div>
                             </div>
                             <div class="status-item">
-                                <div class="status-label">Water Level (High)</div>
+                                <div class="status-label">Water Tank Level</div>
                                 <div class="status-indicator" id="water-high-status">
                                     <span class="status-dot"></span>
                                     <span class="status-text">--</span>
@@ -355,6 +355,38 @@
             }
         }
 
+        function updateWaterLevelStatus(elementId, isLow, isHigh = false) {
+            const indicator = document.getElementById(elementId);
+            if (indicator) {
+                const dot = indicator.querySelector('.status-dot');
+                const text = indicator.querySelector('span:last-child');
+                
+                if (elementId === 'water-low-status') {
+                    // For low water level: 1 = Low (warning), 0 = OK
+                    if (isLow === 1) {
+                        indicator.className = 'status-indicator warning';
+                        dot.className = 'status-dot warning';
+                        text.textContent = 'Low';
+                    } else {
+                        indicator.className = 'status-indicator active';
+                        dot.className = 'status-dot active';
+                        text.textContent = 'OK';
+                    }
+                } else if (elementId === 'water-high-status') {
+                    // For high water level: 1 = Full, 0 = OK
+                    if (isHigh === 1) {
+                        indicator.className = 'status-indicator active';
+                        dot.className = 'status-dot active';
+                        text.textContent = 'Full';
+                    } else {
+                        indicator.className = 'status-indicator inactive';
+                        dot.className = 'status-dot inactive';
+                        text.textContent = 'OK';
+                    }
+                }
+            }
+        }
+
         function checkAlerts(data) {
             const alerts = [];
             
@@ -472,8 +504,8 @@
             // System Status
             updateStatusIndicator('valve-status', data.valve_status === 1);
             updateStatusIndicator('pump-status', data.pump_status === 1);
-            updateStatusIndicator('water-low-status', data.water_level_low_status === 1, data.water_level_low_status === 1);
-            updateStatusIndicator('water-high-status', data.water_level_high_status === 1);
+            updateWaterLevelStatus('water-low-status', data.water_level_low_status);
+            updateWaterLevelStatus('water-high-status', null, data.water_level_high_status);
             
             // Last update
             if (data.timestamp) {
@@ -505,11 +537,18 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         plugins: {
-                            title: { display: true, text: 'Soil Moisture Trends (%)', font: { size: 16 } },
+                            title: { display: true, text: 'Soil Moisture Trends (%) - Hourly Average', font: { size: 16 } },
                             legend: { display: true }
                         },
                         scales: {
-                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Moisture %' } }
+                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Moisture %' } },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    maxTicksLimit: 12
+                                }
+                            }
                         }
                     }
                 });
@@ -529,38 +568,108 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         plugins: {
-                            title: { display: true, text: 'Temperature & Humidity Trends', font: { size: 16 } },
+                            title: { display: true, text: 'Temperature & Humidity Trends - Hourly Average', font: { size: 16 } },
                             legend: { display: true }
                         },
                         scales: {
                             y: { type: 'linear', position: 'left', title: { display: true, text: 'Temperature (°C)' } },
-                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } }
+                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity (%)' }, grid: { drawOnChartArea: false } },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    maxTicksLimit: 12
+                                }
+                            }
                         }
                     }
                 });
             }
         }
 
+        function aggregateByHour(data) {
+            // Group data by hour
+            const hourlyData = {};
+            
+            data.forEach(d => {
+                const date = new Date(d.timestamp);
+                // Create hour key: YYYY-MM-DD-HH
+                const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}`;
+                
+                if (!hourlyData[hourKey]) {
+                    hourlyData[hourKey] = {
+                        timestamp: d.timestamp,
+                        hourLabel: date.toLocaleString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        }),
+                        soil1: [],
+                        soil2: [],
+                        soil3: [],
+                        temperature: [],
+                        humidity: []
+                    };
+                }
+                
+                // Collect values for averaging
+                if (d.soil_moisture_1_percent !== null && d.soil_moisture_1_percent !== undefined) {
+                    hourlyData[hourKey].soil1.push(Number(d.soil_moisture_1_percent));
+                }
+                if (d.soil_moisture_2_percent !== null && d.soil_moisture_2_percent !== undefined) {
+                    hourlyData[hourKey].soil2.push(Number(d.soil_moisture_2_percent));
+                }
+                if (d.soil_moisture_3_percent !== null && d.soil_moisture_3_percent !== undefined) {
+                    hourlyData[hourKey].soil3.push(Number(d.soil_moisture_3_percent));
+                }
+                if (d.air_temperature_celsius !== null && d.air_temperature_celsius !== undefined) {
+                    hourlyData[hourKey].temperature.push(Number(d.air_temperature_celsius));
+                }
+                if (d.air_humidity_percent !== null && d.air_humidity_percent !== undefined) {
+                    hourlyData[hourKey].humidity.push(Number(d.air_humidity_percent));
+                }
+            });
+            
+            // Calculate averages and create sorted array
+            const aggregated = Object.keys(hourlyData)
+                .sort()
+                .map(key => {
+                    const hour = hourlyData[key];
+                    return {
+                        timestamp: hour.timestamp,
+                        label: hour.hourLabel,
+                        soil1: hour.soil1.length > 0 ? hour.soil1.reduce((a, b) => a + b, 0) / hour.soil1.length : null,
+                        soil2: hour.soil2.length > 0 ? hour.soil2.reduce((a, b) => a + b, 0) / hour.soil2.length : null,
+                        soil3: hour.soil3.length > 0 ? hour.soil3.reduce((a, b) => a + b, 0) / hour.soil3.length : null,
+                        temperature: hour.temperature.length > 0 ? hour.temperature.reduce((a, b) => a + b, 0) / hour.temperature.length : null,
+                        humidity: hour.humidity.length > 0 ? hour.humidity.reduce((a, b) => a + b, 0) / hour.humidity.length : null
+                    };
+                });
+            
+            return aggregated;
+        }
+
         function updateCharts(historyData) {
             if (!historyData || historyData.length === 0) return;
             
-            const labels = historyData.map(d => {
-                const date = new Date(d.timestamp);
-                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            });
+            // Aggregate data by hour for cleaner charts
+            const hourlyData = aggregateByHour(historyData);
+            
+            const labels = hourlyData.map(d => d.label);
             
             if (soilChart) {
                 soilChart.data.labels = labels;
-                soilChart.data.datasets[0].data = historyData.map(d => d.soil_moisture_1_percent);
-                soilChart.data.datasets[1].data = historyData.map(d => d.soil_moisture_2_percent);
-                soilChart.data.datasets[2].data = historyData.map(d => d.soil_moisture_3_percent);
+                soilChart.data.datasets[0].data = hourlyData.map(d => d.soil1);
+                soilChart.data.datasets[1].data = hourlyData.map(d => d.soil2);
+                soilChart.data.datasets[2].data = hourlyData.map(d => d.soil3);
                 soilChart.update();
             }
             
             if (environmentChart) {
                 environmentChart.data.labels = labels;
-                environmentChart.data.datasets[0].data = historyData.map(d => d.air_temperature_celsius);
-                environmentChart.data.datasets[1].data = historyData.map(d => d.air_humidity_percent);
+                environmentChart.data.datasets[0].data = hourlyData.map(d => d.temperature);
+                environmentChart.data.datasets[1].data = hourlyData.map(d => d.humidity);
                 environmentChart.update();
             }
         }
@@ -976,11 +1085,69 @@
                 });
             };
             
-            // Escape HTML to prevent XSS
+            // Escape HTML to prevent XSS (for user messages)
             const escapeHtml = (text) => {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
+            };
+            
+            // Clean and format HTML response from bot (remove inline styles, convert to clean HTML)
+            const cleanHtmlResponse = (html) => {
+                if (!html) return '';
+                
+                // Create a temporary div to parse HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Remove inline styles from all elements
+                const allElements = tempDiv.querySelectorAll('*');
+                allElements.forEach(el => {
+                    el.removeAttribute('style');
+                });
+                
+                // Convert <br> tags to proper line breaks
+                const brTags = tempDiv.querySelectorAll('br');
+                brTags.forEach(br => {
+                    br.replaceWith(document.createTextNode('\n'));
+                });
+                
+                // Get text content and preserve line breaks
+                let text = tempDiv.textContent || tempDiv.innerText || '';
+                
+                // Convert HTML tags to plain text formatting
+                // Handle <strong> and <b> tags
+                text = text.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+                text = text.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+                
+                // Handle <p> tags - add line breaks
+                text = text.replace(/<p[^>]*>/gi, '\n');
+                text = text.replace(/<\/p>/gi, '\n');
+                
+                // Handle <br> and <br/> tags
+                text = text.replace(/<br\s*\/?>/gi, '\n');
+                
+                // Remove remaining HTML tags
+                text = text.replace(/<[^>]+>/g, '');
+                
+                // Decode HTML entities
+                text = text.replace(/&nbsp;/g, ' ');
+                text = text.replace(/&amp;/g, '&');
+                text = text.replace(/&lt;/g, '<');
+                text = text.replace(/&gt;/g, '>');
+                text = text.replace(/&quot;/g, '"');
+                
+                // Clean up multiple line breaks
+                text = text.replace(/\n{3,}/g, '\n\n');
+                text = text.trim();
+                
+                // Convert **text** to <strong>text</strong> for rendering
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                // Convert line breaks to <br> tags
+                text = text.replace(/\n/g, '<br>');
+                
+                return text;
             };
             
             // Add message to chatbox
@@ -991,13 +1158,16 @@
                 messageDiv.id = messageId;
                 
                 if (isBot) {
+                    // For bot messages, clean HTML and render it
+                    const cleanedText = isLoading ? 'Thinking...' : cleanHtmlResponse(text);
                     messageDiv.innerHTML = `
                         <div class="message-avatar">🤖</div>
                         <div class="message-content">
-                            <div class="message-text">${isLoading ? 'Thinking...' : escapeHtml(text)}</div>
+                            <div class="message-text">${cleanedText}</div>
                         </div>
                     `;
                 } else {
+                    // For user messages, escape HTML for security
                     messageDiv.innerHTML = `
                         <div class="message-content">
                             <div class="message-text">${escapeHtml(text)}</div>

@@ -9,6 +9,7 @@ const { PORT } = require('./config/constants');
 const authRoutes = require('./routes/auth');
 const dataRoutes = require('./routes/data');
 const commandRoutes = require('./routes/commands');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(express.static('public'));
 app.use('/api', authRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/commands', commandRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Default root route -> redirect to login page
 app.get('/', (req, res) => {
