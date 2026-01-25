@@ -3,8 +3,13 @@ services:
     name: ecoflow
     env: node
     plan: free
+<<<<<<< HEAD
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start 
+=======
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+>>>>>>> 711b098d7bcf35a0d40c7bd342f9605f9bab01c6
     envVars:
       - key: NODE_ENV
         value: production
