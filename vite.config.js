@@ -23,6 +23,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
+    host: true, // Allow external connections
+    allowedHosts: [
+      'localhost',
+      '.onrender.com', // Allow all Render subdomains
+      '.render.com',
+    ],
     hmr: {
       clientPort: 5173,
     },

@@ -148,7 +148,12 @@ async function setupVite() {
         const vite = await createServer({
             server: { 
                 middlewareMode: true,
-                hmr: false // Disable HMR in production
+                hmr: false, // Disable HMR in production
+                // In production middleware mode, allow all hosts (Render, Vercel, etc.)
+                // This is safe because we're behind Express which handles security
+                allowedHosts: process.env.NODE_ENV === 'production' 
+                    ? true  // Allow all hosts in production
+                    : ['localhost', '127.0.0.1']
             },
             appType: 'spa',
             root: process.cwd(),
