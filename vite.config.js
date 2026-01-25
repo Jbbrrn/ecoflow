@@ -40,7 +40,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion'],
+    include: ['react', 'react-dom', 'react-is', 'react-router-dom', 'framer-motion', 'recharts'],
   },
   // Ensure Vite works in production middleware mode
   clearScreen: false,
