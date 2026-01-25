@@ -1,0 +1,136 @@
+/* Thermometer — adapted from original design, driven by actual temperature (0–50°C) */
+
+/* Variables */
+.thermometer {
+  --tm-width: 22px;
+  --tm-height: 180px;
+  --tm-border: 7px;
+  --tm-bulb-size: 44px;
+  --tm-radius: 14px;
+  --tm-bg: #3a3a40;
+  --tm-border-color: #2a2a2e;
+  --tm-bulb-color: #3dcadf;
+  --tm-mercury-warm: #f17a65;
+  --tm-mercury-cool: #3dcadf;
+  --tm-tooltip-bg: rgba(0, 0, 0, 0.75);
+  --tm-gradation: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.thermometer-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+/* Stem */
+.thermometer {
+  width: var(--tm-width);
+  background: var(--tm-bg);
+  height: var(--tm-height);
+  position: relative;
+  border: var(--tm-border) solid var(--tm-border-color);
+  border-radius: var(--tm-radius);
+  z-index: 1;
+  margin-bottom: var(--tm-bulb-size);
+}
+
+/* Border cover at stem–bulb junction */
+.thermometer::before {
+  position: absolute;
+  content: "";
+  border-radius: 50%;
+  width: 100%;
+  height: calc(var(--tm-bulb-size) / 2 + var(--tm-border));
+  bottom: var(--tm-border);
+  background: var(--tm-bg);
+  z-index: -1;
+}
+
+/* Bulb */
+.thermometer::after {
+  position: absolute;
+  content: "";
+  border-radius: 50%;
+  transform: translateX(-50%);
+  width: var(--tm-bulb-size);
+  height: var(--tm-bulb-size);
+  background-color: var(--tm-bulb-color);
+  bottom: calc(-1 * var(--tm-bulb-size) + var(--tm-border));
+  border: var(--tm-border) solid var(--tm-border-color);
+  z-index: -3;
+  left: 50%;
+}
+
+/* Mercury column — height set inline from progress (0–50°C → 0–100%) */
+.thermometer-mercury {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(var(--tm-mercury-warm), var(--tm-mercury-cool)) no-repeat bottom;
+  background-size: 100% var(--tm-height);
+  border-radius: var(--tm-radius);
+  min-height: 4px;
+}
+
+/* Tooltip at top of mercury */
+.thermometer-mercury::before {
+  content: attr(data-value);
+  position: absolute;
+  background: var(--tm-tooltip-bg);
+  color: white;
+  z-index: 2;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  left: calc(100% + 8px);
+  top: -6px;
+  transform: translateY(-50%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+/* Tooltip arrow */
+.thermometer-mercury::after {
+  content: "";
+  position: absolute;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 6px solid var(--tm-tooltip-bg);
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Graduations */
+.thermometer-graduations {
+  position: absolute;
+  height: 58%;
+  top: 18%;
+  right: -5px;
+  width: 6px;
+  border-top: var(--tm-gradation);
+  border-bottom: var(--tm-gradation);
+  pointer-events: none;
+}
+
+.thermometer-graduations::before {
+  content: "";
+  position: absolute;
+  height: 32%;
+  width: 100%;
+  top: 34%;
+  border-top: var(--tm-gradation);
+  border-bottom: var(--tm-gradation);
+}
+
+.thermometer-scale {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}

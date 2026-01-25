@@ -1,0 +1,215 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './DashboardSidebar.css';
+
+// SVG Icon Components - Updated to match design
+const DashboardIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="7" height="7" rx="1" fill="#3B82F6"/>
+    <rect x="14" y="3" width="7" height="7" rx="1" fill="#EF4444"/>
+    <rect x="3" y="14" width="7" height="7" rx="1" fill="#10B981"/>
+    <rect x="14" y="14" width="7" height="7" rx="1" fill="#F59E0B"/>
+  </svg>
+);
+
+const AnalyticsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 18L9 12L13 15L21 6" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="3" cy="18" r="2" fill="#3B82F6"/>
+    <circle cx="9" cy="12" r="2" fill="#3B82F6"/>
+    <circle cx="13" cy="15" r="2" fill="#3B82F6"/>
+    <circle cx="21" cy="6" r="2" fill="#3B82F6"/>
+  </svg>
+);
+
+const ControlsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="10" y="3" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="17" y="3" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="3" y="10" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="10" y="10" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="17" y="10" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="3" y="17" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="10" y="17" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="17" y="17" width="5" height="5" rx="1" fill="currentColor" opacity="0.3"/>
+  </svg>
+);
+
+const ReportsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 13H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M16 17H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M10 9H9H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+const LogoutIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7 17H4C3.44772 17 3 16.5523 3 16V4C3 3.44772 3.44772 3 4 3H7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M13 14L17 10L13 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M17 10H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
+  const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setIsCollapsed(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const sidebarWidth = isCollapsed ? '80px' : '280px';
+    document.documentElement.style.setProperty('--sidebar-width', sidebarWidth);
+  }, [isCollapsed]);
+
+  const navItems = userRole === 'admin' 
+    ? [
+        { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
+        { id: 'analytics', icon: AnalyticsIcon, label: 'Analytics' },
+        { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
+        { id: 'reports', icon: ReportsIcon, label: 'Generate Reports' },
+      ]
+    : [
+        { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
+        { id: 'analytics', icon: AnalyticsIcon, label: 'Analytics' },
+        { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
+      ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('userToken');
+    localStorage.removeItem('userRole');
+    navigate('/');
+  };
+
+  const handleNavClick = (id) => {
+    if (onSectionChange) {
+      onSectionChange(id);
+    }
+    if (isMobile) {
+      setIsCollapsed(true);
+    }
+  };
+
+  return (
+    <>
+      {/* Mobile Overlay */}
+      {isMobile && !isCollapsed && (
+        <div 
+          className="sidebar-overlay"
+          onClick={() => setIsCollapsed(true)}
+        />
+      )}
+      
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''}`}>
+        {/* Header */}
+        <div className="sidebar-header">
+          <div className="sidebar-logo-container">
+            <img 
+              src="/css/logo_ecoflow.png" 
+              alt="Eco Flow Logo" 
+              className="sidebar-logo"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            {!isCollapsed && (
+              <span className="sidebar-brand">Eco Flow</span>
+            )}
+          </div>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label="Toggle sidebar"
+          >
+            <span className={`toggle-icon ${isCollapsed ? 'collapsed' : ''}`}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="sidebar-nav">
+          {!isCollapsed && (
+            <div className="nav-section-heading">NAVIGATION</div>
+          )}
+          <ul className="nav-list">
+            {navItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <li key={item.id}>
+                  <button
+                    className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
+                    onClick={() => handleNavClick(item.id)}
+                    title={isCollapsed ? item.label : ''}
+                  >
+                    <span className="nav-icon-wrapper">
+                      <span className="nav-icon">
+                        <IconComponent />
+                      </span>
+                    </span>
+                    {!isCollapsed && <span className="nav-label">{item.label}</span>}
+                    {activeSection === item.id && (
+                      <span className="nav-indicator"></span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Footer */}
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div className="user-avatar">
+              {userRole === 'admin' ? (
+                <div className="user-avatar-initial">A</div>
+              ) : (
+                <div className="user-avatar-initial">G</div>
+              )}
+            </div>
+            {!isCollapsed && (
+              <div className="user-details">
+                <div className="user-name">
+                  {userRole === 'admin' ? 'Admin User' : 'Gardener User'}
+                </div>
+                <div className="user-role-text">
+                  {userRole === 'admin' ? 'Administrator' : 'Gardener'}
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            className="logout-btn"
+            onClick={handleLogout}
+            title={isCollapsed ? 'Logout' : ''}
+          >
+            <span className="logout-icon">
+              <LogoutIcon />
+            </span>
+            {!isCollapsed && <span className="logout-text">Logout</span>}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+};
+
+export default DashboardSidebar;

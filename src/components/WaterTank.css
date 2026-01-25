@@ -1,0 +1,341 @@
+/*
+ * LAYOUT
+ */
+
+.water-tank-wrapper {
+  width: 100%;
+  display: flex;
+  flex-flow: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+/*
+ * CARD CONTAINER FOR SENSORS
+ */
+
+.sensors-card-container {
+  width: 100%;
+  max-width: 1200px;
+  border-radius: 30px;
+  background: #e0e0e0;
+  background-image: url('/soil.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 15px 15px 30px #bebebe,
+             -15px -15px 30px #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 2em;
+  box-sizing: border-box;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.sensors-card-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(139, 90, 43, 0.15); /* Brown overlay for better contrast */
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sensors-card-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sensors-card-title {
+  text-align: center;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 1.5em;
+  letter-spacing: 0.05em;
+  animation: fadeInDown 0.8s ease-out, subtlePulse 3s ease-in-out 0.8s infinite;
+  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+.sensors-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2em;
+}
+
+.desc {
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 3;
+  pointer-events: none; /* Allow clicks to pass through */
+}
+
+/*
+ * FONT SIZE
+ */
+
+.desc p {
+  font-size: 3.5em;
+}
+
+.desc h2 {
+  font-size: 1.5em;
+}
+
+.desc span {
+  font-size: 0.5em;
+}
+
+.desc * {
+  margin: 0;
+}
+
+/*
+ * MAKE CIRCLE
+ */
+
+.circle-container {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .circle-container {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+.circle-container > * {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 10px solid white;
+  transition: border-color 0.3s ease;
+}
+
+.circle {
+  background: white;
+  border-color: #3b82f6; /* Default blue, will be overridden by inline style */
+}
+
+/*
+ * MAKE WAVE
+ */
+
+.wave {
+  background: url(https://coiger.github.io/fill-water-animation/wave.svg) repeat-x;
+  opacity: 0.8;
+  z-index: 2; /* Ensure waves appear above solid fill */
+}
+
+.wave-below {
+  background-color: #3b46d3;
+  z-index: 1; /* Solid fill behind waves */
+}
+
+/*
+ * SET WAVE POSITION
+ */
+
+.wave._0 {
+  background-position: 0% 110%;
+}
+.wave-below._0 {
+  clip-path: polygon(0% 110%, 0% 110%, 110% 110%, 110% 110%);
+}
+
+.wave._50 {
+  background-position: 0% 57%;
+}
+.wave-below._50 {
+  clip-path: polygon(0% 110%, 0% 58%, 110% 58%, 110% 110%);
+}
+
+.wave._100 {
+  background-position: 0% 5%;
+}
+.wave-below._100 {
+  clip-path: polygon(0% 110%, 0% 15%, 110% 15%, 110% 110%);
+}
+
+/*
+ * DEFINE FILLING ANIMATION
+ */
+
+@keyframes fill-wave {
+  from {
+    background-position: -1200px 110%;
+  }
+}
+
+@keyframes fill-below {
+  from {
+    clip-path: polygon(0% 110%, 0% 110%, 110% 110%, 110% 110%);
+  }
+}
+
+/*
+ * DEFINE WAVE ANIMATION
+ */
+
+@keyframes wave-0 {
+  to {
+    background-position: 1200px 110%;
+  }
+}
+
+@keyframes wave-50 {
+  to {
+    background-position: 1200px 57%;
+  }
+}
+
+@keyframes wave-100 {
+  to {
+    background-position: 1200px 5%;
+  }
+}
+
+/* Dynamic wave animation for any percentage */
+@keyframes wave-dynamic {
+  to {
+    background-position: 1200px var(--wave-end-position, 110%);
+  }
+}
+
+/*
+ * GIVE FILLING & WAVE ANIMATION
+ */
+
+:root {
+  --ease-in: cubic-bezier(0.58, 0.42, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.42, 0.58);
+}
+
+/* Default animations - only apply if no inline style animation is set */
+.wave:not([style*="animation-name"]) {
+  animation-name: fill-wave, wave-0;
+  animation-duration: 5s, 7s;
+  animation-delay: 0s, 5s;
+  animation-fill-mode: forwards, none;
+  animation-iteration-count: 1, infinite;
+  animation-timing-function: var(--ease-in), var(--ease-out);
+}
+
+.wave._50:not([style*="animation-name"]) {
+  animation-name: fill-wave, wave-50;
+}
+
+.wave._100:not([style*="animation-name"]) {
+  animation-name: fill-wave, wave-100;
+}
+
+.wave:nth-child(2) {
+  animation-duration: 5s, 11s;
+}
+
+.wave:nth-child(3) {
+  animation-duration: 5s, 13s;
+}
+
+/* Default animations - only apply if no inline style animation is set */
+.wave-below:not([style*="animation"]) {
+  animation: 5s var(--ease-in) forwards fill-below;
+}
+
+.wave-below._50:not([style*="animation"]) {
+  animation: 7s -2s var(--ease-in) forwards fill-below;
+}
+
+.wave-below._100:not([style*="animation"]) {
+  animation: 6s -1s var(--ease-in) forwards fill-below;
+}
+
+/*
+ * DEFINE TEXT ANIMATION
+ */
+@keyframes rise-up {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+
+  70% {
+    transform: translateY(-10px);
+  }
+}
+
+.desc * {
+  animation: 1s 6s both rise-up;
+}
+
+.desc._0 {
+  color: #000000;
+}
+
+.desc._0 p {
+  color: #000000;
+}
+
+.desc._0 h2 {
+  color: #000000;
+}
+
+.desc._50 p {
+  color: #000000;
+}
+
+.desc._50 h2 {
+  color: #000000;
+}
+
+.desc._100 {
+  color: #000000;
+}
+
+.desc._100 p {
+  color: #000000;
+}
+
+.desc._100 h2 {
+  color: #000000;
+}
