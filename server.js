@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const dataRoutes = require('./routes/data');
 const commandRoutes = require('./routes/commands');
 const reportRoutes = require('./routes/reports');
+const chatbotRoutes = require('./routes/chatbot');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api', authRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/commands', commandRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api', chatbotRoutes);
 
 // Health check endpoint for Render (must work immediately)
 app.get('/health', (req, res) => {

@@ -1215,7 +1215,7 @@
                 const loadingId = addChatboxMessage('Thinking...', true, true);
                 
                 // Send to API (using same webhook as full chatbot)
-                const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot';
+                const N8N_WEBHOOK_URL = '/api/chatbot';
                 
                 fetch(N8N_WEBHOOK_URL, {
                     method: 'POST',

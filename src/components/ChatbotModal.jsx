@@ -17,7 +17,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const N8N_WEBHOOK_URL = 'https://ecoflow-ublc.app.n8n.cloud/webhook/chatbot';
+  const CHATBOT_API_URL = '/api/chatbot';
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -38,23 +38,49 @@ const ChatbotModal = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      console.log('Sending message to:', CHATBOT_API_URL);
+      console.log('Message:', text.trim());
+      
+      const response = await fetch(CHATBOT_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: text.trim() }),
+        body: JSON.stringify({ question: text.trim(), message: text.trim() }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        let errorText;
+        try {
+          errorText = await response.text();
+          const errorData = JSON.parse(errorText);
+          console.error('Chatbot API error (JSON):', response.status, errorData);
+          throw new Error(errorData.response || errorData.message || `Server error: ${response.status}`);
+        } catch (parseError) {
+          console.error('Chatbot API error (text):', response.status, errorText);
+          throw new Error(`Server error: ${response.status} - ${errorText || 'Unknown error'}`);
+        }
+      }
+
       const data = await response.json();
+      console.log('Response data:', data);
       const botResponse = data.response || data.message || "I'm sorry, I couldn't process that request. Please try again.";
 
       setMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
     } catch (error) {
       console.error('Chatbot error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       setMessages(prev => [...prev, { 
         type: 'bot', 
-        text: "I'm sorry, I encountered an error. Please try again later." 
+        text: `Error: ${error.message}. Please check the browser console (F12) for more details.` 
       }]);
     } finally {
       setIsLoading(false);
@@ -79,7 +105,32 @@ const ChatbotModal = ({ isOpen, onClose }) => {
   ];
 
   return (
-    <AnimatePresence>
+    <>
+      <style>{`
+        .chatbot-html-response p {
+          margin-bottom: 0.5rem;
+        }
+        .chatbot-html-response ul {
+          margin-left: 1rem;
+          margin-top: 0.5rem;
+          margin-bottom: 0.5rem;
+          list-style-type: disc;
+        }
+        .chatbot-html-response li {
+          margin-bottom: 0.25rem;
+        }
+        .chatbot-html-response strong {
+          font-weight: 600;
+        }
+        .chatbot-html-response a {
+          color: #10b981;
+          text-decoration: underline;
+        }
+        .chatbot-html-response a:hover {
+          color: #059669;
+        }
+      `}</style>
+      <AnimatePresence>
       {isOpen && (
         <>
           {/* Overlay */}
@@ -135,7 +186,15 @@ const ChatbotModal = ({ isOpen, onClose }) => {
                         : 'bg-white text-gray-800 shadow-sm'
                     }`}
                   >
-                    <p className="text-sm leading-relaxed">{message.text}</p>
+                    {message.type === 'bot' ? (
+                      <div 
+                        className="text-sm leading-relaxed chatbot-html-response"
+                        style={{ lineHeight: '1.6' }}
+                        dangerouslySetInnerHTML={{ __html: message.text }}
+                      />
+                    ) : (
+                      <p className="text-sm leading-relaxed">{message.text}</p>
+                    )}
                     {message.list && (
                       <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
                         {message.list.map((item, i) => (
@@ -216,6 +275,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
         </>
       )}
     </AnimatePresence>
+    </>
   );
 };
 
