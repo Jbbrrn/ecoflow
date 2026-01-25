@@ -7,11 +7,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  base: '/', // Ensure assets are served from root
   root: path.resolve(__dirname),
   publicDir: path.resolve(__dirname, 'public'),
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
+    // Ensure proper asset handling
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined, // Let Vite handle chunking
+      },
+    },
   },
   resolve: {
     alias: {

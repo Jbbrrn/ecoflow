@@ -32,28 +32,43 @@ app.get('/health', (req, res) => {
 });
 
 // Serve static files: dist folder first (React build), then public folder (legacy files)
-app.use(express.static('dist'));
+app.use(express.static('dist', { index: false })); // Don't serve index.html automatically
 app.use(express.static('public'));
 
-// SPA route handler - serve index.html for all non-API routes
-// Use app.use() instead of app.get('*') for Express 5 compatibility
+// SPA route handler - serve index.html for React routes (if needed)
+// This must come AFTER static middleware so assets are served first
 app.use((req, res, next) => {
     // Skip API routes and health check
     if (req.path.startsWith('/api/') || req.path === '/health') {
         return next();
     }
     
-    // Skip file requests (should have been handled by static middleware)
+    // Skip file requests with extensions (assets like .js, .css, .png, etc.)
+    // These should have been handled by static middleware
     if (req.path.match(/\.[a-zA-Z0-9]+$/)) {
         return next();
     }
     
-    // Serve index.html from dist folder for SPA routing
-    res.sendFile('index.html', { root: 'dist' }, (err) => {
+    // Skip static HTML files in public folder (like login.html, admin_dashboard.html, etc.)
+    // These should be served by static middleware, not React app
+    if (req.path.endsWith('.html')) {
+        return next();
+    }
+    
+    // Serve index.html from dist folder for React SPA routing
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    
+    // Set proper content type
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    
+    res.sendFile(indexPath, (err) => {
         if (err) {
-            // If dist/index.html doesn't exist, try to serve from root
-            res.sendFile('index.html', { root: __dirname }, (err2) => {
+            console.error('Error serving dist/index.html:', err.message);
+            // If dist/index.html doesn't exist, try root index.html
+            const rootIndexPath = path.join(__dirname, 'index.html');
+            res.sendFile(rootIndexPath, (err2) => {
                 if (err2) {
+                    console.error('Error serving root index.html:', err2.message);
                     res.status(503).send('React app not built. Please run: npm run build');
                 }
             });
@@ -69,8 +84,25 @@ try {
         
         // Check if dist folder exists
         const distPath = path.resolve(__dirname, 'dist');
+        const indexPath = path.join(distPath, 'index.html');
+        
         if (fs.existsSync(distPath)) {
             console.log(`✓ React app: http://localhost:${PORT}/ (serving from dist folder)`);
+            
+            // Check if index.html exists in dist
+            if (fs.existsSync(indexPath)) {
+                const indexContent = fs.readFileSync(indexPath, 'utf-8');
+                console.log(`✓ Found dist/index.html (${indexContent.length} bytes)`);
+                
+                // Check if it has script tags (Vite should have transformed it)
+                if (indexContent.includes('<script')) {
+                    console.log(`✓ index.html contains script tags`);
+                } else {
+                    console.warn(`⚠ index.html might not have script tags - build may be incomplete`);
+                }
+            } else {
+                console.warn(`⚠ dist/index.html not found`);
+            }
         } else {
             console.warn(`⚠ React app: dist folder not found. Run: npm run build`);
             console.warn(`   For development, use: npm run dev`);
