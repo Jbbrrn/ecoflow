@@ -19,6 +19,7 @@ export default defineConfig({
     },
     extensions: ['.js', '.jsx', '.json'],
   },
+  // Server config (used in dev mode, middleware mode ignores most of this)
   server: {
     port: 5173,
     strictPort: false,
@@ -27,7 +28,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
@@ -35,4 +36,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'framer-motion'],
   },
+  // Ensure Vite works in production middleware mode
+  clearScreen: false,
+  logLevel: 'info',
 });

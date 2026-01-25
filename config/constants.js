@@ -18,5 +18,5 @@ module.exports = {
     DEVICE_API_KEY: process.env.DEVICE_API_KEY,
     SERVICE_API_KEY: process.env.SERVICE_API_KEY,
     SALT_ROUNDS: 10,
-    PORT: process.env.PORT || 3000
+    PORT: process.env.PORT || 5000
 };
