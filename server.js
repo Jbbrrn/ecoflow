@@ -54,9 +54,15 @@ async function setupVite() {
         app.use(vite.middlewares);
         
         // Serve index.html for all non-API routes (SPA fallback)
-        app.get('*', async (req, res, next) => {
+        // Use a function to check if route should be handled by Vite
+        app.use(async (req, res, next) => {
             // Skip API routes and health check
             if (req.path.startsWith('/api/') || req.path === '/health') {
+                return next();
+            }
+            
+            // Skip if it's a file request (has extension) - let Vite handle it
+            if (req.path.match(/\.[a-zA-Z0-9]+$/)) {
                 return next();
             }
             
@@ -77,8 +83,9 @@ async function setupVite() {
         // Fallback: try to serve from dist if it exists
         app.use(express.static('public'));
         app.use(express.static('dist'));
-        app.get('*', (req, res, next) => {
+        app.use((req, res, next) => {
             if (req.path.startsWith('/api/') || req.path === '/health') return next();
+            if (req.path.match(/\.[a-zA-Z0-9]+$/)) return next(); // Skip file requests
             res.sendFile('index.html', { root: 'dist' }, (err) => {
                 if (err) {
                     res.status(503).send('React app not available. Please ensure Vite dependencies are installed.');
