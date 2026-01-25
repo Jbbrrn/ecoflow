@@ -58,20 +58,56 @@ app.use((req, res, next) => {
     // Serve index.html from dist folder for React SPA routing
     const indexPath = path.join(__dirname, 'dist', 'index.html');
     
+    // Check if dist/index.html exists before trying to serve it
+    if (!fs.existsSync(indexPath)) {
+        console.error(`[SPA Handler] dist/index.html not found at ${indexPath}`);
+        console.error(`[SPA Handler] Current directory: ${__dirname}`);
+        console.error(`[SPA Handler] Dist folder exists: ${fs.existsSync(path.join(__dirname, 'dist'))}`);
+        return res.status(503).send(`
+            <html>
+                <head><title>Build Required</title></head>
+                <body>
+                    <h1>React app not built</h1>
+                    <p>The dist folder or index.html is missing. Please ensure the build completed successfully.</p>
+                    <p>Expected path: ${indexPath}</p>
+                </body>
+            </html>
+        `);
+    }
+    
+    // Read and verify the file content
+    try {
+        const fileContent = fs.readFileSync(indexPath, 'utf-8');
+        if (!fileContent || fileContent.trim().length === 0) {
+            console.error(`[SPA Handler] dist/index.html is empty`);
+            return res.status(503).send('<html><body><h1>Error: dist/index.html is empty</h1></body></html>');
+        }
+        
+        if (!fileContent.includes('<script')) {
+            console.warn(`[SPA Handler] dist/index.html might not have script tags - content preview: ${fileContent.substring(0, 200)}`);
+        }
+    } catch (readErr) {
+        console.error(`[SPA Handler] Error reading dist/index.html:`, readErr.message);
+        return res.status(503).send(`<html><body><h1>Error reading file: ${readErr.message}</h1></body></html>`);
+    }
+    
     // Set proper content type
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     
     res.sendFile(indexPath, (err) => {
         if (err) {
-            console.error('Error serving dist/index.html:', err.message);
-            // If dist/index.html doesn't exist, try root index.html
-            const rootIndexPath = path.join(__dirname, 'index.html');
-            res.sendFile(rootIndexPath, (err2) => {
-                if (err2) {
-                    console.error('Error serving root index.html:', err2.message);
-                    res.status(503).send('React app not built. Please run: npm run build');
-                }
-            });
+            console.error('[SPA Handler] Error serving dist/index.html:', err.message);
+            console.error('[SPA Handler] Error details:', err);
+            res.status(503).send(`
+                <html>
+                    <head><title>Error</title></head>
+                    <body>
+                        <h1>Error serving React app</h1>
+                        <p>${err.message}</p>
+                        <p>Path: ${indexPath}</p>
+                    </body>
+                </html>
+            `);
         }
     });
 });
