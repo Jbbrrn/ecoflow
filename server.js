@@ -17,17 +17,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 
-// Routes
+// API routes first
 app.use('/api', authRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/commands', commandRoutes);
 app.use('/api/reports', reportRoutes);
 
-// Default root route -> redirect to login page
-app.get('/', (req, res) => {
-    res.redirect('/login.html');
+// React SPA routes - serve index.html for client-side routing
+const spaPaths = ['/', '/login.html', '/gardener-dashboard', '/admin-dashboard', '/admin_dashboard.html', '/gardener_dashboard.html'];
+app.get(spaPaths, (req, res) => {
+    res.sendFile('index.html', { root: 'dist' }, (err) => {
+        if (err) {
+            if (req.path === '/login.html') {
+                res.status(503).send('React app not built. Run: npm run build');
+            } else {
+                res.redirect('/login.html');
+            }
+        }
+    });
+});
+
+// Static: React build (assets), then legacy public as fallback
+app.use(express.static('dist'));
+app.use(express.static('public'));
+
+// SPA catch-all: unknown paths → index.html (Express 5: use /{*splat})
+app.get('/{*splat}', (req, res, next) => {
+    // Skip catch-all for API routes
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    res.sendFile('index.html', { root: 'dist' }, (err) => {
+        if (err) res.redirect('/login.html');
+    });
 });
 
 // Health check endpoint for Render
@@ -38,7 +61,7 @@ app.get('/health', (req, res) => {
 // Server Start - Start server first, then initialize database
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Access login page: http://localhost:${PORT}/login.html`);
+    console.log(`React app: http://localhost:${PORT}/  (or use Vite dev server: npm run dev)`);
     
     // Initialize database connection after server starts
     initializeDatabase().catch((error) => {

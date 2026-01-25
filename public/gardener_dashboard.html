@@ -192,7 +192,37 @@
                 <!-- Manual Controls Section -->
                 <div class="dashboard-section" id="controls-section">
                     <h2 class="section-title">Manual Controls</h2>
-                    <p class="section-description">Override automatic systems when needed.</p>
+                    <p class="section-description">What are Manual Controls? Manual controls allow you to override the automatic irrigation system and manually operate the water pump and valve when needed. This is useful for testing, maintenance, or when you want to water your plants immediately.</p>
+                    
+                    <!-- How to Use Box -->
+                    <div class="manual-controls-instructions">
+                        <div class="instructions-header">
+                            <span class="instructions-icon">📋</span>
+                            <span class="instructions-title">How to Use:</span>
+                        </div>
+                        <ol class="instructions-list">
+                            <li>Click the toggle switch on any control card to turn it ON or OFF</li>
+                            <li>The switch will show "Active" when the device is running</li>
+                            <li>Monitor the status indicator to see if the command was successful</li>
+                            <li>Remember to turn OFF manual controls when done to return to automatic mode</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- Status Legend -->
+                    <div class="status-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot legend-green"></span>
+                            <span class="legend-text">Green: Device is active and running</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot legend-yellow"></span>
+                            <span class="legend-text">Yellow: Command is pending</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot legend-gray"></span>
+                            <span class="legend-text">Gray: Device is inactive</span>
+                        </div>
+                    </div>
                     
                     <div class="control-panel">
                         <div class="control-card">
@@ -204,29 +234,25 @@
                                     <h3 class="control-title">Water Pump</h3>
                                     <div class="control-status-badge" id="pump-status-badge">
                                         <span class="status-dot-indicator"></span>
-                                        <span class="status-text-small">--</span>
+                                        <span class="status-text-small">Inactive</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="control-actions">
-                                <button class="control-btn control-btn-on" id="pump-on-btn" onclick="sendCommand('pump', 'ON')">
-                                    <span class="btn-icon">💧</span>
-                                    <span class="btn-text">Pump ON</span>
-                                </button>
-                                <button class="control-btn control-btn-off" id="pump-off-btn" onclick="sendCommand('pump', 'OFF')">
-                                    <span class="btn-icon">⏹️</span>
-                                    <span class="btn-text">Pump OFF</span>
-                                </button>
+                            <p class="control-description">Manually activate the sprinkler system Click the switch to turn on the water pump and start watering your plants through the sprinkler system.</p>
+                            
+                            <div class="control-toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="pump-toggle" onchange="handleToggle('pump', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label" id="pump-toggle-label">Click to start sprinkler</span>
                             </div>
                             
                             <div class="control-status-info" id="pump-status-display">
                                 <div class="status-info-row">
-                                    <span class="status-label">Status:</span>
-                                    <span class="status-value" id="pump-status-value">--</span>
-                                </div>
-                                <div class="status-info-row">
-                                    <span class="status-time" id="pump-status-time"></span>
+                                    <span class="status-label">Current State:</span>
+                                    <span class="status-value" id="pump-status-value">OFF</span>
                                 </div>
                             </div>
                         </div>
@@ -240,29 +266,25 @@
                                     <h3 class="control-title">Solenoid Valve</h3>
                                     <div class="control-status-badge" id="valve-status-badge">
                                         <span class="status-dot-indicator"></span>
-                                        <span class="status-text-small">--</span>
+                                        <span class="status-text-small">Inactive</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="control-actions">
-                                <button class="control-btn control-btn-on" id="valve-on-btn" onclick="sendCommand('valve', 'ON')">
-                                    <span class="btn-icon">💧</span>
-                                    <span class="btn-text">Valve ON</span>
-                                </button>
-                                <button class="control-btn control-btn-off" id="valve-off-btn" onclick="sendCommand('valve', 'OFF')">
-                                    <span class="btn-icon">⏹️</span>
-                                    <span class="btn-text">Valve OFF</span>
-                                </button>
+                            <p class="control-description">Manually fill the water tank Click the switch to open the valve and fill the water tank. This ensures you have enough water for irrigation.</p>
+                            
+                            <div class="control-toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="valve-toggle" onchange="handleToggle('valve', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label" id="valve-toggle-label">Click to fill tank</span>
                             </div>
                             
                             <div class="control-status-info" id="valve-status-display">
                                 <div class="status-info-row">
-                                    <span class="status-label">Status:</span>
-                                    <span class="status-value" id="valve-status-value">--</span>
-                                </div>
-                                <div class="status-info-row">
-                                    <span class="status-time" id="valve-status-time"></span>
+                                    <span class="status-label">Current State:</span>
+                                    <span class="status-value" id="valve-status-value">OFF</span>
                                 </div>
                             </div>
                         </div>
@@ -736,16 +758,13 @@
                 return;
             }
 
-            // Disable buttons during request
-            const onBtn = document.getElementById(`${device}-on-btn`);
-            const offBtn = document.getElementById(`${device}-off-btn`);
-            const originalOnText = onBtn.textContent;
-            const originalOffText = offBtn.textContent;
+            // Disable toggle during request
+            const toggle = document.getElementById(`${device}-toggle`);
+            const toggleLabel = document.getElementById(`${device}-toggle-label`);
+            const originalLabel = toggleLabel?.textContent;
             
-            onBtn.disabled = true;
-            offBtn.disabled = true;
-            onBtn.textContent = 'Sending...';
-            offBtn.textContent = 'Sending...';
+            if (toggle) toggle.disabled = true;
+            if (toggleLabel) toggleLabel.textContent = 'Sending...';
 
             try {
                 const response = await fetch('/api/commands/send', {
@@ -772,95 +791,107 @@
 
                 // Refresh status immediately and then poll
                 fetchCommandStatus();
-                
-                // Show temporary success message
-                const statusValue = document.getElementById(`${device}-status-value`);
-                const originalStatus = statusValue.textContent;
-                statusValue.textContent = `Command sent: ${state}`;
-                statusValue.className = 'status-value pending';
-                
-                setTimeout(() => {
-                    statusValue.textContent = originalStatus;
-                }, 2000);
 
             } catch (error) {
                 console.error('Error sending command:', error);
                 alert(`Failed to send command: ${error.message}`);
+                // Revert toggle on error
+                if (toggle) toggle.checked = state !== 'ON';
             } finally {
-                // Re-enable buttons
-                onBtn.disabled = false;
-                offBtn.disabled = false;
-                onBtn.textContent = originalOnText;
-                offBtn.textContent = originalOffText;
+                // Re-enable toggle
+                if (toggle) toggle.disabled = false;
+                if (toggleLabel && originalLabel) toggleLabel.textContent = originalLabel;
             }
+        }
+
+        async function handleToggle(device, isOn) {
+            const state = isOn ? 'ON' : 'OFF';
+            await sendCommand(device, state);
         }
 
         function updateCommandStatus(device, commandData) {
             const statusValue = document.getElementById(`${device}-status-value`);
-            const statusTime = document.getElementById(`${device}-status-time`);
             const statusBadge = document.getElementById(`${device}-status-badge`);
+            const toggle = document.getElementById(`${device}-toggle`);
+            const toggleLabel = document.getElementById(`${device}-toggle-label`);
+            const dotIndicator = statusBadge?.querySelector('.status-dot-indicator');
+            const statusText = statusBadge?.querySelector('.status-text-small');
             
             if (!commandData) {
                 if (statusValue) {
-                    statusValue.textContent = 'No commands yet';
+                    statusValue.textContent = 'OFF';
                     statusValue.className = 'status-value';
                 }
-                if (statusTime) statusTime.textContent = '';
-                if (statusBadge) {
-                    const dot = statusBadge.querySelector('.status-dot-indicator');
-                    const text = statusBadge.querySelector('.status-text-small');
-                    if (dot) dot.className = 'status-dot-indicator inactive';
-                    if (text) text.textContent = '--';
+                if (toggle) toggle.checked = false;
+                if (toggleLabel) {
+                    toggleLabel.textContent = device === 'pump' ? 'Click to start sprinkler' : 'Click to fill tank';
                 }
+                if (dotIndicator) {
+                    dotIndicator.className = 'status-dot-indicator inactive';
+                }
+                if (statusText) statusText.textContent = 'Inactive';
                 return;
             }
             
             // Format status display
-            let statusText = '';
+            let statusTextValue = '';
             let statusClass = '';
             let isActive = false;
+            let isPending = false;
             
             if (commandData.status === 'PENDING') {
-                statusText = `Pending: ${commandData.desired_state}`;
+                statusTextValue = 'Pending';
                 statusClass = 'pending';
                 isActive = commandData.desired_state === 'ON';
+                isPending = true;
             } else if (commandData.status === 'SUCCESS') {
-                statusText = `Success: ${commandData.actual_state || commandData.desired_state}`;
+                statusTextValue = commandData.actual_state || commandData.desired_state;
                 statusClass = 'success';
                 isActive = (commandData.actual_state || commandData.desired_state) === 'ON';
             } else if (commandData.status === 'FAILED') {
-                statusText = `Failed: ${commandData.desired_state}`;
-                statusClass = 'failed';
+                statusTextValue = 'Failed';
+                statusClass = 'error';
                 isActive = false;
             } else {
-                statusText = `${commandData.desired_state}`;
+                statusTextValue = commandData.desired_state || 'OFF';
                 statusClass = '';
                 isActive = commandData.desired_state === 'ON';
             }
 
+            // Update toggle switch
+            if (toggle) {
+                toggle.checked = isActive;
+            }
+
+            // Update status value
             if (statusValue) {
-                statusValue.textContent = statusText;
+                statusValue.textContent = statusTextValue;
                 statusValue.className = `status-value ${statusClass}`;
             }
 
             // Update status badge
-            if (statusBadge) {
-                const dot = statusBadge.querySelector('.status-dot-indicator');
-                const text = statusBadge.querySelector('.status-text-small');
-                if (dot) {
-                    dot.className = isActive ? 'status-dot-indicator active' : 'status-dot-indicator inactive';
-                }
-                if (text) {
-                    text.textContent = isActive ? 'ON' : 'OFF';
+            if (dotIndicator) {
+                if (isPending) {
+                    dotIndicator.className = 'status-dot-indicator';
+                    dotIndicator.style.background = '#FFC107';
+                } else if (isActive) {
+                    dotIndicator.className = 'status-dot-indicator active';
+                } else {
+                    dotIndicator.className = 'status-dot-indicator inactive';
                 }
             }
+            
+            if (statusText) {
+                statusText.textContent = isPending ? 'Pending' : (isActive ? 'Active' : 'Inactive');
+            }
 
-            // Format time
-            if (statusTime && commandData.requested_at) {
-                const requestedTime = new Date(commandData.requested_at);
-                statusTime.textContent = `Requested: ${requestedTime.toLocaleString()}`;
-            } else if (statusTime) {
-                statusTime.textContent = '';
+            // Update toggle label
+            if (toggleLabel) {
+                if (device === 'pump') {
+                    toggleLabel.textContent = isActive ? 'Sprinkler is running' : 'Click to start sprinkler';
+                } else {
+                    toggleLabel.textContent = isActive ? 'Tank is filling' : 'Click to fill tank';
+                }
             }
         }
 

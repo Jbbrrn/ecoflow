@@ -1,0 +1,95 @@
+// API Client for Eco Flow
+const API_BASE_URL = '/api';
+
+export const apiClient = {
+  async login(email, password) {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    if (!response.ok) {
+      let error;
+      try {
+        error = await response.json();
+      } catch (e) {
+        // If response is not valid JSON, create a generic error
+        error = { 
+          message: `Server error (${response.status}). Please check if the backend server is running on port 3000.` 
+        };
+      }
+      throw new Error(error.message || 'Login failed');
+    }
+    
+    return await response.json();
+  },
+
+  async getData(endpoint) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/data/${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch data');
+    }
+    
+    return await response.json();
+  },
+
+  async sendCommand(device, state) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/commands/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ device, state }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Command failed');
+    }
+    
+    return await response.json();
+  },
+
+  async getCommandStatus() {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/commands/status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch command status');
+    }
+    
+    return await response.json();
+  },
+
+  // Generic GET method for API calls
+  async get(endpoint) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to fetch data' }));
+      throw new Error(error.message || 'Failed to fetch data');
+    }
+    
+    return await response.json();
+  },
+};

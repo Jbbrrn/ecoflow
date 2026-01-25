@@ -1,0 +1,74 @@
+/* Circular Humidity Meter Component */
+
+.humidity-meter-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+  width: 100%;
+}
+
+.humidity-meter-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.humidity-meter-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.humidity-meter-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 10;
+}
+
+.humidity-meter-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: color 0.5s ease;
+  margin-bottom: 0.2rem;
+  text-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.humidity-meter-label {
+  font-size: 0.75rem;
+  color: #6B7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.humidity-progress-circle {
+  transition: stroke 0.5s ease;
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .humidity-meter-container {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .humidity-meter-value {
+    font-size: 2rem;
+  }
+  
+  .humidity-meter-label {
+    font-size: 0.7rem;
+  }
+}

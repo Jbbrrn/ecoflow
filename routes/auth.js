@@ -89,7 +89,17 @@ router.post('/login', async (req, res) => {
 
     } catch (error) {
         console.error('Login Error:', error);
-        res.status(500).json({ message: 'Internal server error during login.' });
+        // Check if it's a database connection error
+        if (error.message && error.message.includes('Database pool not initialized')) {
+            return res.status(503).json({ 
+                message: 'Database connection not available. Please check your database configuration and ensure the database server is running.' 
+            });
+        }
+        // Ensure we always send valid JSON
+        res.status(500).json({ 
+            message: 'Internal server error during login.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
