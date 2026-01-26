@@ -10,7 +10,7 @@ import Analytics from '../components/Analytics';
 import FloatingChatbotButton from '../components/FloatingChatbotButton';
 import { apiClient } from '../services/client.js';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import '../components/WaterTank.css';
 
 const AdminDashboard = () => {
@@ -686,6 +686,18 @@ const AdminDashboard = () => {
       const pageWidth = doc.internal.pageSize.getWidth();
       let yPosition = 20;
 
+      // Helper function to safely convert to number
+      const toNumber = (value, defaultValue = 0) => {
+        if (value === null || value === undefined || value === '') return defaultValue;
+        const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+        return isNaN(num) ? defaultValue : num;
+      };
+
+      // Helper function to format number with decimals
+      const formatNum = (value, decimals = 2) => {
+        return toNumber(value, 0).toFixed(decimals);
+      };
+
       // Helper function to add a new page if needed
       const checkPageBreak = (requiredSpace = 20) => {
         if (yPosition + requiredSpace > doc.internal.pageSize.getHeight() - 20) {
@@ -721,10 +733,10 @@ const AdminDashboard = () => {
         if (reportData.summary) {
           const summaryData = [
             ['Total Commands', reportData.summary.total || 0],
-            ['Success Rate', `${(reportData.summary.success_rate || 0).toFixed(2)}%`],
-            ['Avg Execution Time', `${(reportData.summary.avg_execution_time || 0).toFixed(2)}s`]
+            ['Success Rate', `${formatNum(reportData.summary.success_rate)}%`],
+            ['Avg Execution Time', `${formatNum(reportData.summary.avg_execution_time)}s`]
           ];
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Metric', 'Value']],
             body: summaryData,
@@ -747,7 +759,7 @@ const AdminDashboard = () => {
             cmd.execution_time_seconds ? `${cmd.execution_time_seconds}s` : 'N/A'
           ]);
 
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Time', 'Device', 'Desired State', 'Actual State', 'Status', 'User', 'Execution Time']],
             body: commandsData,
@@ -768,7 +780,7 @@ const AdminDashboard = () => {
             ['First Reading', new Date(s.first_reading).toLocaleString()],
             ['Last Reading', new Date(s.last_reading).toLocaleString()]
           ];
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Overview', '']],
             body: overviewData,
@@ -780,17 +792,17 @@ const AdminDashboard = () => {
           // Soil Moisture
           checkPageBreak(30);
           const soilData = [
-            ['Sensor 1 - Average', `${(s.avg_soil1 || 0).toFixed(2)}%`],
-            ['Sensor 1 - Minimum', `${(s.min_soil1 || 0).toFixed(2)}%`],
-            ['Sensor 1 - Maximum', `${(s.max_soil1 || 0).toFixed(2)}%`],
-            ['Sensor 2 - Average', `${(s.avg_soil2 || 0).toFixed(2)}%`],
-            ['Sensor 2 - Minimum', `${(s.min_soil2 || 0).toFixed(2)}%`],
-            ['Sensor 2 - Maximum', `${(s.max_soil2 || 0).toFixed(2)}%`],
-            ['Sensor 3 - Average', `${(s.avg_soil3 || 0).toFixed(2)}%`],
-            ['Sensor 3 - Minimum', `${(s.min_soil3 || 0).toFixed(2)}%`],
-            ['Sensor 3 - Maximum', `${(s.max_soil3 || 0).toFixed(2)}%`]
+            ['Sensor 1 - Average', `${formatNum(s.avg_soil1)}%`],
+            ['Sensor 1 - Minimum', `${formatNum(s.min_soil1)}%`],
+            ['Sensor 1 - Maximum', `${formatNum(s.max_soil1)}%`],
+            ['Sensor 2 - Average', `${formatNum(s.avg_soil2)}%`],
+            ['Sensor 2 - Minimum', `${formatNum(s.min_soil2)}%`],
+            ['Sensor 2 - Maximum', `${formatNum(s.max_soil2)}%`],
+            ['Sensor 3 - Average', `${formatNum(s.avg_soil3)}%`],
+            ['Sensor 3 - Minimum', `${formatNum(s.min_soil3)}%`],
+            ['Sensor 3 - Maximum', `${formatNum(s.max_soil3)}%`]
           ];
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Soil Moisture', 'Value']],
             body: soilData,
@@ -802,14 +814,14 @@ const AdminDashboard = () => {
           // Temperature & Humidity
           checkPageBreak(20);
           const envData = [
-            ['Temperature - Average', `${(s.avg_temperature || 0).toFixed(2)}°C`],
-            ['Temperature - Minimum', `${(s.min_temperature || 0).toFixed(2)}°C`],
-            ['Temperature - Maximum', `${(s.max_temperature || 0).toFixed(2)}°C`],
-            ['Humidity - Average', `${(s.avg_humidity || 0).toFixed(2)}%`],
-            ['Humidity - Minimum', `${(s.min_humidity || 0).toFixed(2)}%`],
-            ['Humidity - Maximum', `${(s.max_humidity || 0).toFixed(2)}%`]
+            ['Temperature - Average', `${formatNum(s.avg_temperature)}°C`],
+            ['Temperature - Minimum', `${formatNum(s.min_temperature)}°C`],
+            ['Temperature - Maximum', `${formatNum(s.max_temperature)}°C`],
+            ['Humidity - Average', `${formatNum(s.avg_humidity)}%`],
+            ['Humidity - Minimum', `${formatNum(s.min_humidity)}%`],
+            ['Humidity - Maximum', `${formatNum(s.max_humidity)}%`]
           ];
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Environment', 'Value']],
             body: envData,
@@ -831,7 +843,7 @@ const AdminDashboard = () => {
             activity.pending_commands || 0
           ]);
 
-          doc.autoTable({
+          autoTable(doc, {
             startY: yPosition,
             head: [['Username', 'Email', 'Role', 'Status', 'Total', 'Success', 'Failed', 'Pending']],
             body: activityData,
@@ -839,6 +851,182 @@ const AdminDashboard = () => {
             headStyles: { fillColor: [61, 134, 11] },
             styles: { fontSize: 8 }
           });
+        }
+
+      } else if (reportType === 'system-health') {
+        // System Health Report PDF
+        if (reportData) {
+          // Match the render function's data access pattern
+          const commands = reportData?.commands || reportData?.data?.commands || {};
+          const sensors = reportData?.sensors || reportData?.data?.sensors || {};
+          const waterAlerts = reportData?.water_alerts || reportData?.data?.water_alerts || {};
+          const devices = reportData?.devices || reportData?.data?.devices || [];
+          const overallStatus = reportData?.overall_status || reportData?.data?.overall_status || 'unknown';
+          const periodDays = reportData?.period_days || reportData?.data?.period_days || 7;
+          
+          // Only show data if commands and sensors exist
+          if (commands && sensors && (commands.total_commands !== undefined || sensors.total_readings !== undefined)) {
+            // Command Statistics
+            const commandData = [
+              ['Total Commands', commands.total_commands || 0],
+              ['Successful', commands.successful || 0],
+              ['Failed', commands.failed || 0],
+              ['Pending', commands.pending || 0],
+              ['Success Rate', `${commands.total_commands > 0 ? formatNum((commands.successful / commands.total_commands) * 100) : 0}%`],
+              ['Avg Response Time', `${formatNum(commands.avg_response_time)}s`]
+            ];
+            
+            autoTable(doc, {
+              startY: yPosition,
+              head: [['Command Statistics', 'Value']],
+              body: commandData,
+              theme: 'striped',
+              headStyles: { fillColor: [61, 134, 11] }
+            });
+            yPosition = doc.lastAutoTable.finalY + 10;
+
+            // Sensor Statistics
+            checkPageBreak(20);
+            const sensorData = [
+              ['Total Readings', sensors.total_readings || 0],
+              ['Days with Data', sensors.days_with_data || 0],
+              ['Oldest Reading', sensors.oldest_reading ? new Date(sensors.oldest_reading).toLocaleString() : 'N/A'],
+              ['Newest Reading', sensors.newest_reading ? new Date(sensors.newest_reading).toLocaleString() : 'N/A'],
+              ['Hours Since Last Reading', sensors.hours_since_last_reading || 0]
+            ];
+            
+            autoTable(doc, {
+              startY: yPosition,
+              head: [['Sensor Statistics', 'Value']],
+              body: sensorData,
+              theme: 'striped',
+              headStyles: { fillColor: [61, 134, 11] }
+            });
+            yPosition = doc.lastAutoTable.finalY + 10;
+
+            // Water Alerts
+            if (waterAlerts && (waterAlerts.low_water_count || waterAlerts.high_water_count)) {
+              checkPageBreak(15);
+              const alertData = [
+                ['Low Water Alerts', waterAlerts.low_water_count || 0],
+                ['High Water Alerts', waterAlerts.high_water_count || 0]
+              ];
+              
+              autoTable(doc, {
+                startY: yPosition,
+                head: [['Water Alerts', 'Count']],
+                body: alertData,
+                theme: 'striped',
+                headStyles: { fillColor: [61, 134, 11] }
+              });
+              yPosition = doc.lastAutoTable.finalY + 10;
+            }
+
+            // Device Uptime
+            if (devices && devices.length > 0) {
+              checkPageBreak(20);
+              const deviceData = devices.map(device => [
+                device.device || 'N/A',
+                device.total_commands || 0,
+                device.successful_ons || 0,
+                device.failures || 0
+              ]);
+              
+              autoTable(doc, {
+                startY: yPosition,
+                head: [['Device', 'Total Commands', 'Successful ONs', 'Failures']],
+                body: deviceData,
+                theme: 'striped',
+                headStyles: { fillColor: [61, 134, 11] }
+              });
+              yPosition = doc.lastAutoTable.finalY + 10;
+            }
+
+            // Overall Status
+            checkPageBreak(10);
+            yPosition += 5;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            const status = overallStatus;
+            const statusColor = status === 'healthy' ? [61, 134, 11] : status === 'warning' ? [245, 158, 11] : [239, 68, 68];
+            doc.setTextColor(...statusColor);
+            doc.text(`Overall Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`, 14, yPosition);
+            doc.text(`Period: Last ${periodDays} days`, 14, yPosition + 5);
+          } else {
+            // No data message
+            yPosition += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text('No system health data available for the selected period.', 14, yPosition);
+          }
+        }
+
+      } else if (reportType === 'water-usage') {
+        // Water Usage Report PDF
+        // Match the render function's data access pattern
+        const usage = reportData?.usage || reportData?.data?.usage;
+        
+        if (usage && (usage.pump || usage.valve)) {
+          const pump = usage.pump || {};
+          const valve = usage.valve || {};
+          
+          // Pump Statistics
+          const pumpData = [
+            ['Total Activations', pump.total_activations || 0],
+            ['Successful Activations', pump.successful_activations || 0],
+            ['Total ON Time', `${pump.total_on_time_minutes || 0} minutes`],
+            ['Total ON Time (Hours)', `${formatNum((pump.total_on_time_minutes || 0) / 60)} hours`]
+          ];
+          
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Pump Statistics', 'Value']],
+            body: pumpData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+
+          // Valve Statistics
+          checkPageBreak(20);
+          const valveData = [
+            ['Total Activations', valve.total_activations || 0],
+            ['Successful Activations', valve.successful_activations || 0],
+            ['Total ON Time', `${valve.total_on_time_minutes || 0} minutes`],
+            ['Total ON Time (Hours)', `${formatNum((valve.total_on_time_minutes || 0) / 60)} hours`]
+          ];
+          
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Valve Statistics', 'Value']],
+            body: valveData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+
+          // Summary
+          checkPageBreak(15);
+          const totalMinutes = (pump.total_on_time_minutes || 0) + (valve.total_on_time_minutes || 0);
+          const summaryData = [
+            ['Total Device Activations', (pump.total_activations || 0) + (valve.total_activations || 0)],
+            ['Combined ON Time', `${totalMinutes} minutes`],
+            ['Combined ON Time (Hours)', `${formatNum(totalMinutes / 60)} hours`]
+          ];
+          
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Summary', 'Value']],
+            body: summaryData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+        } else {
+          // No data message
+          yPosition += 10;
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          doc.text('No water usage data available for the selected date range.', 14, yPosition);
         }
       }
 
