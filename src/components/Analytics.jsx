@@ -18,7 +18,14 @@ const Analytics = () => {
       const response = await apiClient.get(`/data/history?hours=${timeRange}`);
       // The API returns an array directly, not wrapped in a data property
       const data = Array.isArray(response) ? response : [];
-      console.log(`Fetched ${data.length} history records for ${timeRange}h range`);
+      console.log(`[DEBUG] Fetched ${data.length} history records for ${timeRange}h range`);
+      
+      if (data.length > 0) {
+        console.log('[DEBUG] Sample data point:', data[0]);
+        console.log('[DEBUG] Sample temperature value:', data[0]?.air_temperature_celsius, typeof data[0]?.air_temperature_celsius);
+        console.log('[DEBUG] Sample humidity value:', data[0]?.air_humidity_percent, typeof data[0]?.air_humidity_percent);
+      }
+      
       setHistoryData(data);
     } catch (error) {
       console.error('Error fetching history data:', error);
@@ -84,28 +91,140 @@ const Analytics = () => {
 
   // Calculate summary statistics
   const getSummaryStats = () => {
-    if (!historyData || historyData.length === 0) return null;
+    if (!historyData || historyData.length === 0) {
+      console.log('[DEBUG] No history data available');
+      return null;
+    }
 
+    console.log(`[DEBUG] Processing ${historyData.length} history records`);
     const latest = historyData[historyData.length - 1];
-    const soil1Values = historyData.map(d => d.soil_moisture_1_percent).filter(v => v !== null && v !== undefined);
-    const soil2Values = historyData.map(d => d.soil_moisture_2_percent).filter(v => v !== null && v !== undefined);
-    const soil3Values = historyData.map(d => d.soil_moisture_3_percent).filter(v => v !== null && v !== undefined);
-    const tempValues = historyData.map(d => d.air_temperature_celsius).filter(v => v !== null && v !== undefined);
-    const humidityValues = historyData.map(d => d.air_humidity_percent).filter(v => v !== null && v !== undefined);
-
-    const avg = (arr) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0;
-    const min = (arr) => arr.length > 0 ? Math.round(Math.min(...arr) * 10) / 10 : 0;
-    const max = (arr) => arr.length > 0 ? Math.round(Math.max(...arr) * 10) / 10 : 0;
-
-    return {
-      soil: {
-        sensor1: { current: latest?.soil_moisture_1_percent || 0, avg: avg(soil1Values), min: min(soil1Values), max: max(soil1Values) },
-        sensor2: { current: latest?.soil_moisture_2_percent || 0, avg: avg(soil2Values), min: min(soil2Values), max: max(soil2Values) },
-        sensor3: { current: latest?.soil_moisture_3_percent || 0, avg: avg(soil3Values), min: min(soil3Values), max: max(soil3Values) }
-      },
-      temperature: { current: latest?.air_temperature_celsius || 0, avg: avg(tempValues), min: min(tempValues), max: max(tempValues) },
-      humidity: { current: latest?.air_humidity_percent || 0, avg: avg(humidityValues), min: min(humidityValues), max: max(humidityValues) }
+    
+    // Helper function to safely parse and filter numeric values
+    const parseNumericValues = (arr) => {
+      const parsed = arr
+        .map((v, idx) => {
+          if (v === null || v === undefined) return null;
+          const num = typeof v === 'string' ? parseFloat(v) : Number(v);
+          if (isNaN(num)) {
+            console.log(`[DEBUG] Found NaN at index ${idx}, value:`, v, typeof v);
+            return null;
+          }
+          return num;
+        })
+        .filter(v => v !== null && v !== undefined && !isNaN(v));
+      
+      console.log(`[DEBUG] Parsed ${parsed.length} valid values from ${arr.length} total`);
+      return parsed;
     };
+
+    const soil1Values = parseNumericValues(historyData.map(d => d.soil_moisture_1_percent));
+    const soil2Values = parseNumericValues(historyData.map(d => d.soil_moisture_2_percent));
+    const soil3Values = parseNumericValues(historyData.map(d => d.soil_moisture_3_percent));
+    const tempValues = parseNumericValues(historyData.map(d => d.air_temperature_celsius));
+    const humidityValues = parseNumericValues(historyData.map(d => d.air_humidity_percent));
+
+    console.log('[DEBUG] Temperature values:', tempValues.slice(0, 5), '... (showing first 5)');
+    console.log('[DEBUG] Humidity values:', humidityValues.slice(0, 5), '... (showing first 5)');
+
+    const avg = (arr, name = 'unknown') => {
+      if (!arr || arr.length === 0) {
+        console.log(`[DEBUG] avg(${name}): Empty array, returning null`);
+        return null;
+      }
+      
+      // Double-check all values are numbers
+      const validValues = arr.filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
+      
+      if (validValues.length === 0) {
+        console.log(`[DEBUG] avg(${name}): No valid values after filtering, returning null`);
+        return null;
+      }
+      
+      const sum = validValues.reduce((a, b) => {
+        const numA = typeof a === 'number' && !isNaN(a) && isFinite(a) ? a : 0;
+        const numB = typeof b === 'number' && !isNaN(b) && isFinite(b) ? b : 0;
+        return numA + numB;
+      }, 0);
+      
+      const average = sum / validValues.length;
+      
+      if (isNaN(average) || !isFinite(average)) {
+        console.log(`[DEBUG] avg(${name}): Calculated NaN or Infinity, sum: ${sum}, count: ${validValues.length}`);
+        return null;
+      }
+      
+      const rounded = Math.round(average * 10) / 10;
+      console.log(`[DEBUG] avg(${name}): ${rounded} (from ${validValues.length} values)`);
+      return rounded;
+    };
+    
+    const min = (arr) => {
+      if (!arr || arr.length === 0) return null;
+      const validValues = arr.filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
+      if (validValues.length === 0) return null;
+      return Math.round(Math.min(...validValues) * 10) / 10;
+    };
+    
+    const max = (arr) => {
+      if (!arr || arr.length === 0) return null;
+      const validValues = arr.filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
+      if (validValues.length === 0) return null;
+      return Math.round(Math.max(...validValues) * 10) / 10;
+    };
+
+    // Helper function to safely parse a single value
+    const parseValue = (value) => {
+      if (value === null || value === undefined) return null;
+      const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(num) || !isFinite(num) ? null : num;
+    };
+
+    const tempAvg = avg(tempValues, 'temperature');
+    const humidityAvg = avg(humidityValues, 'humidity');
+
+    const result = {
+      soil: {
+        sensor1: { 
+          current: parseValue(latest?.soil_moisture_1_percent) || 0, 
+          avg: avg(soil1Values, 'soil1'), 
+          min: min(soil1Values), 
+          max: max(soil1Values) 
+        },
+        sensor2: { 
+          current: parseValue(latest?.soil_moisture_2_percent) || 0, 
+          avg: avg(soil2Values, 'soil2'), 
+          min: min(soil2Values), 
+          max: max(soil2Values) 
+        },
+        sensor3: { 
+          current: parseValue(latest?.soil_moisture_3_percent) || 0, 
+          avg: avg(soil3Values, 'soil3'), 
+          min: min(soil3Values), 
+          max: max(soil3Values) 
+        }
+      },
+      temperature: { 
+        current: parseValue(latest?.air_temperature_celsius) || 0, 
+        avg: tempAvg, 
+        min: min(tempValues), 
+        max: max(tempValues) 
+      },
+      humidity: { 
+        current: parseValue(latest?.air_humidity_percent) || 0, 
+        avg: humidityAvg, 
+        min: min(humidityValues), 
+        max: max(humidityValues) 
+      }
+    };
+
+    console.log('[DEBUG] Final stats:', {
+      tempAvg: result.temperature.avg,
+      humidityAvg: result.humidity.avg,
+      tempMin: result.temperature.min,
+      tempMax: result.temperature.max
+    });
+
+    return result;
   };
 
   const stats = getSummaryStats();
@@ -252,11 +371,24 @@ const Analytics = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Average:</span>
-                <span className="font-semibold text-gray-700">{stats.temperature.avg}°C</span>
+                <span className="font-semibold text-gray-700">
+                  {(() => {
+                    const avgValue = stats.temperature.avg;
+                    console.log('[DEBUG] Rendering temperature avg:', avgValue, typeof avgValue, isNaN(avgValue));
+                    if (avgValue === null || avgValue === undefined || isNaN(avgValue) || !isFinite(avgValue)) {
+                      return 'N/A';
+                    }
+                    return `${avgValue}°C`;
+                  })()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Range:</span>
-                <span className="font-semibold text-gray-700">{stats.temperature.min}°C - {stats.temperature.max}°C</span>
+                <span className="font-semibold text-gray-700">
+                  {stats.temperature.min !== null && stats.temperature.max !== null 
+                    ? `${stats.temperature.min}°C - ${stats.temperature.max}°C` 
+                    : 'N/A'}
+                </span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
@@ -299,11 +431,24 @@ const Analytics = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Average:</span>
-                <span className="font-semibold text-gray-700">{stats.humidity.avg}%</span>
+                <span className="font-semibold text-gray-700">
+                  {(() => {
+                    const avgValue = stats.humidity.avg;
+                    console.log('[DEBUG] Rendering humidity avg:', avgValue, typeof avgValue, isNaN(avgValue));
+                    if (avgValue === null || avgValue === undefined || isNaN(avgValue) || !isFinite(avgValue)) {
+                      return 'N/A';
+                    }
+                    return `${avgValue}%`;
+                  })()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Range:</span>
-                <span className="font-semibold text-gray-700">{stats.humidity.min}% - {stats.humidity.max}%</span>
+                <span className="font-semibold text-gray-700">
+                  {stats.humidity.min !== null && stats.humidity.max !== null 
+                    ? `${stats.humidity.min}% - ${stats.humidity.max}%` 
+                    : 'N/A'}
+                </span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">

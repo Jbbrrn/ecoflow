@@ -34,7 +34,16 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
     try {
         const pool = getPool();
         // Use timestamp from body if provided, otherwise use NOW()
-        const timestampValue = timestamp || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        let timestampValue = timestamp || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        // Validate timestamp: ensure it doesn't exceed current system time
+        const currentTime = new Date();
+        const providedTime = timestamp ? new Date(timestamp) : currentTime;
+        
+        if (providedTime > currentTime) {
+            console.warn(`Future timestamp detected: ${timestamp}. Using current time instead.`);
+            timestampValue = currentTime.toISOString().slice(0, 19).replace('T', ' ');
+        }
         
         const [result] = await pool.execute(
             `INSERT INTO sensor_data 
@@ -91,9 +100,21 @@ router.get('/latest', authenticateTokenOrService, async (req, res) => {
                 water_level_low_status,
                 water_level_high_status
              FROM sensor_data 
+             WHERE timestamp <= NOW()
+             AND timestamp <= UTC_TIMESTAMP()
              ORDER BY timestamp DESC 
              LIMIT 1`
         );
+        
+        // Additional client-side validation to ensure no future timestamps
+        if (rows.length > 0) {
+            const now = new Date();
+            const rowTime = new Date(rows[0].timestamp);
+            if (rowTime > now) {
+                // If the latest row is in the future, return empty result
+                return res.status(404).json({ message: 'No valid sensor data found.' });
+            }
+        }
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No sensor data found.' });
@@ -132,8 +153,19 @@ router.get('/history', authenticateTokenOrService, async (req, res) => {
                 water_level_high_status
              FROM sensor_data 
              WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+             AND timestamp <= NOW()
+             AND timestamp <= UTC_TIMESTAMP()
              ORDER BY timestamp ASC`
         , [hours]);
+        
+        // Additional server-side filtering to ensure no future timestamps
+        const now = new Date();
+        const filteredRows = rows.filter(row => {
+            const rowTime = new Date(row.timestamp);
+            return rowTime <= now;
+        });
+        
+        res.status(200).json(filteredRows);
 
         res.status(200).json(rows);
 

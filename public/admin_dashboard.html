@@ -1407,8 +1407,12 @@
                 statusFilterGroup.style.display = 'none';
             }
             
-            // Clear previous results
+            // Clear previous results and data
             document.getElementById('reportResults').innerHTML = '';
+            currentReportData = null;
+            
+            // IMPORTANT: Do NOT auto-load reports. User must click "Generate Report" button.
+            // This prevents device-commands from loading without dates.
         }
 
         async function generateReport() {
@@ -1429,6 +1433,36 @@
                 const endDate = document.getElementById('reportEndDate').value;
                 const device = document.getElementById('reportDevice')?.value || 'all';
                 const status = document.getElementById('reportStatus')?.value || 'all';
+
+                // Validate date requirements for device-commands report
+                if (currentReportType === 'device-commands') {
+                    if (!startDate || !endDate) {
+                        resultsDiv.innerHTML = `
+                            <div class="report-error">
+                                <p>❌ Error: Both start date and end date are required for Device Commands report.</p>
+                                <p>Please select both dates and try again.</p>
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Validate that dates are not in the future
+                    const now = new Date();
+                    const startDateTime = new Date(startDate + 'T00:00:00');
+                    const endDateTime = new Date(endDate + 'T23:59:59');
+                    
+                    if (startDateTime > now || endDateTime > now) {
+                        resultsDiv.innerHTML = `
+                            <div class="report-error">
+                                <p>❌ Error: Date range cannot include future dates.</p>
+                                <p>Please select dates up to today.</p>
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        return;
+                    }
+                }
 
                 let url = `/api/reports/${currentReportType}?`;
                 const params = new URLSearchParams();
@@ -1616,6 +1650,18 @@
         }
 
         function displayUserActivityReport(data) {
+            // Handle case where data might be wrapped or null
+            const activityData = Array.isArray(data) ? data : (data?.data || []);
+            
+            if (!activityData || activityData.length === 0) {
+                return `
+                    <div class="report-container">
+                        <h3 class="report-title">User Activity Report</h3>
+                        <p class="report-error">No user activity data available for the selected date range.</p>
+                    </div>
+                `;
+            }
+            
             let html = `
                 <div class="report-container">
                     <h3 class="report-title">User Activity Report</h3>
@@ -1636,7 +1682,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.map(user => `
+                                ${activityData.map(user => `
                                     <tr>
                                         <td>${user.username}</td>
                                         <td>${user.email}</td>
@@ -1660,7 +1706,18 @@
         }
 
         function displaySensorSummaryReport(data) {
-            const { summary, thresholds } = data;
+            // Handle case where data structure might vary
+            const summary = data?.summary || data?.data?.summary;
+            const thresholds = data?.thresholds || data?.data?.thresholds;
+            
+            if (!summary) {
+                return `
+                    <div class="report-container">
+                        <h3 class="report-title">Sensor Data Summary Report</h3>
+                        <p class="report-error">No sensor summary data available for the selected date range.</p>
+                    </div>
+                `;
+            }
             
             let html = `
                 <div class="report-container">
@@ -1750,25 +1807,42 @@
         }
 
         function displaySystemHealthReport(data) {
-            const statusClass = data.overall_status === 'healthy' ? 'status-success' : 
-                              data.overall_status === 'warning' ? 'status-pending' : 'status-failed';
+            // Handle case where data structure might vary
+            const commands = data?.commands || data?.data?.commands;
+            const sensors = data?.sensors || data?.data?.sensors;
+            const devices = data?.devices || data?.data?.devices || [];
+            const waterAlerts = data?.water_alerts || data?.data?.water_alerts || {};
+            const overallStatus = data?.overall_status || data?.data?.overall_status || 'unknown';
+            const periodDays = data?.period_days || data?.data?.period_days || 7;
+            
+            if (!commands || !sensors) {
+                return `
+                    <div class="report-container">
+                        <h3 class="report-title">System Health Report</h3>
+                        <p class="report-error">No system health data available for the selected date range.</p>
+                    </div>
+                `;
+            }
+            
+            const statusClass = overallStatus === 'healthy' ? 'status-success' : 
+                              overallStatus === 'warning' ? 'status-pending' : 'status-failed';
             
             let html = `
                 <div class="report-container">
-                    <h3 class="report-title">System Health Report (Last ${data.period_days} Days)</h3>
+                    <h3 class="report-title">System Health Report (Last ${periodDays} Days)</h3>
                     
                     <div class="report-summary-grid">
                         <div class="summary-card">
                             <div class="summary-label">Overall Status</div>
-                            <div class="summary-value"><span class="status-badge ${statusClass}">${data.overall_status.toUpperCase()}</span></div>
+                            <div class="summary-value"><span class="status-badge ${statusClass}">${overallStatus.toUpperCase()}</span></div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-label">Command Success Rate</div>
-                            <div class="summary-value">${data.commands.total_commands > 0 ? ((Number(data.commands.successful) / Number(data.commands.total_commands)) * 100).toFixed(2) : 0}%</div>
+                            <div class="summary-value">${commands.total_commands > 0 ? ((Number(commands.successful) / Number(commands.total_commands)) * 100).toFixed(2) : 0}%</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-label">Hours Since Last Reading</div>
-                            <div class="summary-value">${data.sensors.hours_since_last_reading || 0}</div>
+                            <div class="summary-value">${sensors.hours_since_last_reading || 0}</div>
                         </div>
                     </div>
                     
@@ -1777,23 +1851,23 @@
                         <div class="breakdown-list">
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Total Commands:</span>
-                                <span class="breakdown-value">${data.commands.total_commands || 0}</span>
+                                <span class="breakdown-value">${commands.total_commands || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Successful:</span>
-                                <span class="breakdown-value">${data.commands.successful || 0}</span>
+                                <span class="breakdown-value">${commands.successful || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Failed:</span>
-                                <span class="breakdown-value">${data.commands.failed || 0}</span>
+                                <span class="breakdown-value">${commands.failed || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Pending:</span>
-                                <span class="breakdown-value">${data.commands.pending || 0}</span>
+                                <span class="breakdown-value">${commands.pending || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Avg Response Time:</span>
-                                <span class="breakdown-value">${Number(data.commands.avg_response_time || 0).toFixed(2)}s</span>
+                                <span class="breakdown-value">${Number(commands.avg_response_time || 0).toFixed(2)}s</span>
                             </div>
                         </div>
                     </div>
@@ -1803,27 +1877,28 @@
                         <div class="breakdown-list">
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Total Readings:</span>
-                                <span class="breakdown-value">${data.sensors.total_readings || 0}</span>
+                                <span class="breakdown-value">${sensors.total_readings || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Days with Data:</span>
-                                <span class="breakdown-value">${data.sensors.days_with_data || 0}</span>
+                                <span class="breakdown-value">${sensors.days_with_data || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Oldest Reading:</span>
-                                <span class="breakdown-value">${data.sensors.oldest_reading ? new Date(data.sensors.oldest_reading).toLocaleString() : 'N/A'}</span>
+                                <span class="breakdown-value">${sensors.oldest_reading ? new Date(sensors.oldest_reading).toLocaleString() : 'N/A'}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Newest Reading:</span>
-                                <span class="breakdown-value">${data.sensors.newest_reading ? new Date(data.sensors.newest_reading).toLocaleString() : 'N/A'}</span>
+                                <span class="breakdown-value">${sensors.newest_reading ? new Date(sensors.newest_reading).toLocaleString() : 'N/A'}</span>
                             </div>
                         </div>
                     </div>
                     
+                    ${devices.length > 0 ? `
                     <div class="report-breakdown">
                         <h4>Device Performance</h4>
                         <div class="breakdown-list">
-                            ${data.devices.map(device => `
+                            ${devices.map(device => `
                                 <div class="breakdown-item">
                                     <span class="breakdown-label">${device.device.charAt(0).toUpperCase() + device.device.slice(1)}:</span>
                                     <span class="breakdown-value">
@@ -1835,17 +1910,18 @@
                             `).join('')}
                         </div>
                     </div>
+                    ` : ''}
                     
                     <div class="report-breakdown">
                         <h4>Water Level Alerts</h4>
                         <div class="breakdown-list">
                             <div class="breakdown-item">
                                 <span class="breakdown-label">Low Water Alerts:</span>
-                                <span class="breakdown-value">${data.water_alerts.low_water_count || 0}</span>
+                                <span class="breakdown-value">${waterAlerts.low_water_count || 0}</span>
                             </div>
                             <div class="breakdown-item">
                                 <span class="breakdown-label">High Water Alerts:</span>
-                                <span class="breakdown-value">${data.water_alerts.high_water_count || 0}</span>
+                                <span class="breakdown-value">${waterAlerts.high_water_count || 0}</span>
                             </div>
                         </div>
                     </div>
@@ -1856,7 +1932,17 @@
         }
 
         function displayWaterUsageReport(data) {
-            const { usage, commands } = data;
+            // Handle case where data structure might vary
+            const usage = data?.usage || data?.data?.usage;
+            
+            if (!usage) {
+                return `
+                    <div class="report-container">
+                        <h3 class="report-title">Water Usage Report</h3>
+                        <p class="report-error">No water usage data available for the selected date range.</p>
+                    </div>
+                `;
+            }
             
             let html = `
                 <div class="report-container">

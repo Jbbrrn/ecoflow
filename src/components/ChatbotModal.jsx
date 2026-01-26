@@ -67,10 +67,13 @@ const ChatbotModal = ({ isOpen, onClose }) => {
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
       const botResponse = data.response || data.message || "I'm sorry, I couldn't process that request. Please try again.";
 
-      setMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
+      // Add bot response (links are included directly in the HTML response)
+      setMessages(prev => [...prev, { 
+        type: 'bot', 
+        text: botResponse
+      }]);
     } catch (error) {
       console.error('Chatbot error:', error);
       console.error('Error details:', {
@@ -96,6 +99,50 @@ const ChatbotModal = ({ isOpen, onClose }) => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const sanitizeChatbotHTML = (html) => {
+    // Create a temporary div to parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    // Find all links and validate them
+    const links = temp.querySelectorAll('a[href]');
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href) {
+        try {
+          // Check for broken link patterns
+          if (href === '' || 
+              href === '#' || 
+              href.startsWith('javascript:') ||
+              href.includes('example.com') ||
+              href.includes('placeholder')) {
+            // Remove the link, keep the text
+            const textNode = document.createTextNode(link.textContent);
+            link.parentNode.replaceChild(textNode, link);
+          } else {
+            // Validate URL
+            const url = new URL(href, window.location.origin);
+            if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+              // Remove localhost links
+              const textNode = document.createTextNode(link.textContent);
+              link.parentNode.replaceChild(textNode, link);
+            } else {
+              // Ensure proper attributes for valid links
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener noreferrer');
+            }
+          }
+        } catch (e) {
+          // Invalid URL, remove link and keep text
+          const textNode = document.createTextNode(link.textContent);
+          link.parentNode.replaceChild(textNode, link);
+        }
+      }
+    });
+    
+    return temp.innerHTML;
   };
 
   const exampleQuestions = [
@@ -190,7 +237,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
                       <div 
                         className="text-sm leading-relaxed chatbot-html-response"
                         style={{ lineHeight: '1.6' }}
-                        dangerouslySetInnerHTML={{ __html: message.text }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeChatbotHTML(message.text) }}
                       />
                     ) : (
                       <p className="text-sm leading-relaxed">{message.text}</p>

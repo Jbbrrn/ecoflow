@@ -233,19 +233,42 @@
                                     // Special handling for href to ensure it's a valid URL
                                     if (attr.name === 'href') {
                                         try {
-                                            const url = new URL(attr.value, window.location.origin);
+                                            const hrefValue = attr.value.trim();
+                                            
+                                            // Check for common broken link patterns
+                                            if (hrefValue === '' || 
+                                                hrefValue === '#' || 
+                                                hrefValue === 'javascript:' ||
+                                                hrefValue.startsWith('javascript:') ||
+                                                hrefValue.includes('example.com') ||
+                                                hrefValue.includes('placeholder') ||
+                                                hrefValue.includes('localhost') ||
+                                                hrefValue.match(/^https?:\/\/[^\/]+\/?$/)) {
+                                                // Skip broken or placeholder links
+                                                console.warn('Skipping invalid or placeholder link:', hrefValue);
+                                                return; // Skip this attribute
+                                            }
+                                            
+                                            const url = new URL(hrefValue, window.location.origin);
                                             if (url.protocol === 'http:' || url.protocol === 'https:') {
-                                                newElement.setAttribute(attr.name, url.href);
-                                                // Ensure target and rel for external links
-                                                if (!newElement.hasAttribute('target')) {
-                                                    newElement.setAttribute('target', '_blank');
-                                                }
-                                                if (!newElement.hasAttribute('rel')) {
-                                                    newElement.setAttribute('rel', 'noopener noreferrer');
+                                                // Additional validation: ensure it's a complete URL
+                                                if (url.hostname && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+                                                    newElement.setAttribute(attr.name, url.href);
+                                                    // Ensure target and rel for external links
+                                                    if (!newElement.hasAttribute('target')) {
+                                                        newElement.setAttribute('target', '_blank');
+                                                    }
+                                                    if (!newElement.hasAttribute('rel')) {
+                                                        newElement.setAttribute('rel', 'noopener noreferrer');
+                                                    }
+                                                } else {
+                                                    console.warn('Skipping localhost or invalid hostname link:', url.href);
                                                 }
                                             }
                                         } catch (e) {
-                                            // Invalid URL, skip this attribute
+                                            // Invalid URL, skip this attribute and remove the link
+                                            console.warn('Invalid URL detected, removing link:', attr.value);
+                                            // Convert link to plain text by not setting href
                                         }
                                     } else {
                                         newElement.setAttribute(attr.name, attr.value);

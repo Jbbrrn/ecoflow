@@ -22,6 +22,35 @@ if (!OPENAI_API_KEY) {
 }
 
 /**
+ * Determine if a question needs references or external sources
+ * ALWAYS require citations for factual agricultural information
+ */
+function needsReferences(intent, question) {
+    // ALWAYS require citations for these intents (factual information)
+    const alwaysCiteIntents = [
+        'crop_suitability',      // Crop recommendations are factual claims
+        'irrigation_schedule',   // Irrigation advice comes from research
+        'general'                // General questions often need sources
+    ];
+    
+    if (alwaysCiteIntents.includes(intent)) {
+        return true;
+    }
+    
+    const lower = question.toLowerCase();
+    
+    // Questions that explicitly need references
+    const referenceKeywords = [
+        'research', 'study', 'studies', 'paper', 'article', 'publication',
+        'best practices', 'recommendations', 'guide', 'how to',
+        'reference', 'source', 'citation', 'where to find',
+        'university', 'extension', 'government', 'official'
+    ];
+    
+    return referenceKeywords.some(keyword => lower.includes(keyword));
+}
+
+/**
  * Extract hours from question text (e.g., "last 24 hours", "past week")
  */
 function extractHours(text) {
@@ -132,11 +161,20 @@ async function fetchSensorData(intent, hours = 24) {
                     water_level_high_status
                  FROM sensor_data 
                  WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+                 AND timestamp <= NOW()
+                 AND timestamp <= UTC_TIMESTAMP()
                  ORDER BY timestamp ASC`,
                 [hours]
             );
             
-            return rows.length > 0 ? rows : null;
+            // Additional client-side filtering to ensure no future timestamps
+            const now = new Date();
+            const filteredRows = rows.filter(row => {
+                const rowTime = new Date(row.timestamp);
+                return rowTime <= now;
+            });
+            
+            return filteredRows.length > 0 ? filteredRows : null;
         } else {
             // Fetch latest data
             const [rows] = await pool.execute(
@@ -152,9 +190,20 @@ async function fetchSensorData(intent, hours = 24) {
                     water_level_low_status,
                     water_level_high_status
                  FROM sensor_data 
+                 WHERE timestamp <= NOW()
+                 AND timestamp <= UTC_TIMESTAMP()
                  ORDER BY timestamp DESC 
                  LIMIT 1`
             );
+            
+            // Additional client-side validation to ensure no future timestamps
+            if (rows.length > 0) {
+                const now = new Date();
+                const rowTime = new Date(rows[0].timestamp);
+                if (rowTime > now) {
+                    return null; // Return null if timestamp is in the future
+                }
+            }
             
             return rows.length > 0 ? rows[0] : null;
         }
@@ -165,11 +214,14 @@ async function fetchSensorData(intent, hours = 24) {
 }
 
 /**
- * Build system prompt for OpenAI
+ * Build system prompt for OpenAI with enhanced reference handling
  */
-function buildSystemPrompt(intent, data) {
-    let prompt = `You are an expert AI irrigation assistant for the Eco Flow smart greenhouse irrigation system. 
+function buildSystemPrompt(intent, sensorData, needsRefs = false) {
+    let prompt = `You are an expert AI irrigation assistant for the Eco Flow smart greenhouse irrigation system, specifically designed for Filipino farmers and agricultural practitioners. 
 Your role is to provide helpful, accurate, and actionable advice about irrigation, soil conditions, and crop management.
+
+CRITICAL CITATION REQUIREMENT:
+You MUST always cite sources when providing factual agricultural information. Every factual claim, recommendation, or piece of advice that is not based on the provided sensor data MUST include a citation with a clickable hyperlink.
 
 IMPORTANT RULES:
 1. Only answer questions related to irrigation systems, soil conditions, supported crops, and recorded sensor data.
@@ -179,21 +231,51 @@ IMPORTANT RULES:
 5. Respond in the same language as the user's question (English or Filipino/Tagalog).
 6. Use clear, concise language with short paragraphs and bullet points when appropriate.
 7. If sensor data is provided, use it to give accurate answers. Do not invent sensor values.
-8. If no sensor data is available, acknowledge this and provide general best practices.
-9. For crop suitability questions, you may include 1-3 reputable agricultural resource links if helpful.
-10. Format your response as HTML with proper tags (p, ul, li, strong, a) for better readability.
+8. Format your response as HTML with proper tags (p, ul, li, strong, a, h3, h4) for better readability.
+9. ALWAYS include clickable hyperlinks when citing sources. Format links as: <a href="https://da.gov.ph" target="_blank" rel="noopener noreferrer">Department of Agriculture</a>
+10. For factual claims (crop suitability, irrigation schedules, best practices), you MUST cite where this information comes from.
+
+MANDATORY CITATION GUIDELINES:
+- When recommending crops: Cite which organization/research institute recommends these crops with a clickable link
+- When providing irrigation schedules: Cite the source of irrigation guidelines with a clickable link
+- When giving best practices: Cite the agricultural extension service or research institution with a clickable link
+- When answering "what crops are suitable": You MUST include citations with clickable links - this information comes from agricultural research
+- Links MUST be clickable and properly formatted HTML anchor tags
+- Always use full URLs with https:// (e.g., https://da.gov.ph, not just "da.gov.ph")
+- Include at least 1-2 source citations per response when providing factual agricultural information
+
+RECOMMENDED FILIPINO AGRICULTURAL SOURCES (use these for citations with clickable links):
+- Department of Agriculture (DA): https://da.gov.ph
+- Bureau of Agricultural Research (BAR): https://bar.gov.ph
+- Philippine Rice Research Institute (PhilRice): https://philrice.gov.ph
+- International Rice Research Institute (IRRI): https://irri.org
+- Agricultural Training Institute (ATI): https://ati.da.gov.ph
+- Bureau of Plant Industry (BPI): https://bpi.da.gov.ph
+- Philippine Council for Agriculture, Aquatic and Natural Resources Research and Development (PCAARRD): https://pcarrd.dost.gov.ph
+- University of the Philippines Los Baños (UPLB): https://uplb.edu.ph
+
+EXAMPLE CITATION FORMATS (use these patterns):
+- "According to the <a href="https://da.gov.ph" target="_blank" rel="noopener noreferrer">Department of Agriculture</a>, suitable crops for your conditions include..."
+- "The <a href="https://philrice.gov.ph" target="_blank" rel="noopener noreferrer">Philippine Rice Research Institute</a> recommends irrigation schedules of..."
+- "Based on research from <a href="https://bar.gov.ph" target="_blank" rel="noopener noreferrer">Bureau of Agricultural Research</a>, best practices include..."
+- "For more information, visit the <a href="https://ati.da.gov.ph" target="_blank" rel="noopener noreferrer">Agricultural Training Institute</a> website."
 
 Current Intent: ${intent}
 `;
 
-    if (data) {
-        if (Array.isArray(data)) {
-            prompt += `\nHistorical Sensor Data (${data.length} readings over the requested time period):\n${JSON.stringify(data, null, 2)}`;
+    if (sensorData) {
+        if (Array.isArray(sensorData)) {
+            prompt += `\nHistorical Sensor Data (${sensorData.length} readings over the requested time period):\n${JSON.stringify(sensorData, null, 2)}`;
         } else {
-            prompt += `\nLatest Sensor Data:\n${JSON.stringify(data, null, 2)}`;
+            prompt += `\nLatest Sensor Data:\n${JSON.stringify(sensorData, null, 2)}`;
         }
+        prompt += `\n\nNote: When using sensor data, you can reference it directly. For any additional agricultural advice beyond sensor data, you MUST cite sources with clickable hyperlinks.`;
     } else {
-        prompt += `\nNote: No sensor data is currently available. Provide general best practices based on the question.`;
+        prompt += `\nNote: No sensor data is currently available. All agricultural advice MUST be cited with sources and include clickable hyperlinks.`;
+    }
+
+    if (needsRefs || intent === 'crop_suitability' || intent === 'irrigation_schedule') {
+        prompt += `\n\nMANDATORY: The user's question requires factual agricultural information. You MUST cite sources for all recommendations, crop suggestions, and irrigation advice. Include clickable hyperlinks to Filipino agricultural resources. Do not provide information without citations. Every factual claim must have a source link.`;
     }
 
     return prompt;
@@ -201,29 +283,20 @@ Current Intent: ${intent}
 
 /**
  * POST /api/chatbot
- * Chatbot endpoint that uses OpenAI ChatGPT API
+ * Chatbot endpoint that uses OpenAI Chat Completions API with optional web search
  */
 router.post('/chatbot', async (req, res) => {
     try {
-        console.log('Chatbot request received:', {
-            body: req.body,
-            headers: req.headers['content-type']
-        });
-        
         const question = (req.body.question || req.body.message || '').trim();
         
         if (!question) {
-            console.log('No question provided');
             return res.status(400).json({ 
                 response: 'Please provide a question.' 
             });
         }
 
-        console.log('Processing question:', question);
-
-        // Check if OpenAI API key is configured FIRST
+        // Check if OpenAI API key is configured
         if (!OPENAI_API_KEY) {
-            console.error('OPENAI_API_KEY not configured');
             return res.status(500).json({
                 response: 'Chatbot service is not configured. Please contact the administrator.'
             });
@@ -231,68 +304,49 @@ router.post('/chatbot', async (req, res) => {
 
         // Check for forbidden topics
         const classification = classifyQuestion(question);
-        console.log('Classification:', classification);
         
         if (classification.forbidden) {
-            console.log('Question blocked (forbidden topic):', classification.reason);
             return res.json({
                 response: 'I can only answer questions related to irrigation systems, soil conditions, supported crops, and recorded sensor data. I cannot provide information about control commands, chemicals, financial matters, or other off-topic subjects.'
             });
         }
 
-        // Fetch sensor data if needed (wrap in try-catch to handle DB errors gracefully)
+        // Fetch sensor data if needed
         let sensorData = null;
         if (classification.intent !== 'general') {
             try {
-                console.log('Fetching sensor data for intent:', classification.intent);
                 sensorData = await fetchSensorData(classification.intent, classification.hours);
-                console.log('Sensor data fetched:', sensorData ? 'Yes' : 'No');
             } catch (dbError) {
                 console.warn('Could not fetch sensor data (continuing without it):', dbError.message);
-                // Continue without sensor data - chatbot can still answer general questions
                 sensorData = null;
             }
         }
 
-        // Build system prompt
-        const systemPrompt = buildSystemPrompt(classification.intent, sensorData);
-        console.log('System prompt built, length:', systemPrompt.length);
+        // Check if question needs references
+        const needsRefs = needsReferences(classification.intent, question);
 
-        // Call OpenAI API
-        console.log('Calling OpenAI API...');
-        let openaiResponse;
-        try {
-            openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    temperature: 0.3,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: question }
-                    ]
-                })
-            });
-            console.log('OpenAI response status:', openaiResponse.status);
-        } catch (fetchError) {
-            console.error('Failed to call OpenAI API:', fetchError.message);
-            console.error('Fetch error details:', {
-                name: fetchError.name,
-                message: fetchError.message,
-                stack: fetchError.stack
-            });
-            return res.status(500).json({
-                response: 'Failed to connect to AI service. Please check your internet connection and try again.'
-            });
-        }
+        // Build system prompt with enhanced reference handling
+        const systemPrompt = buildSystemPrompt(classification.intent, sensorData, needsRefs);
+
+        // Call OpenAI Chat Completions API
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                temperature: 0.3,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: question }
+                ]
+            })
+        });
 
         if (!openaiResponse.ok) {
             const errorData = await openaiResponse.json().catch(() => ({}));
-            console.error('OpenAI API error:', openaiResponse.status, errorData);
             
             if (openaiResponse.status === 401) {
                 return res.status(500).json({
@@ -312,23 +366,14 @@ router.post('/chatbot', async (req, res) => {
         }
 
         const openaiData = await openaiResponse.json();
-        console.log('OpenAI response received');
         const reply = openaiData.choices?.[0]?.message?.content || 'I received your question, but I\'m having trouble processing it right now. Please try again.';
 
-        console.log('Sending response to client');
-        // Return response in the format expected by the frontend
         res.json({ response: reply });
 
     } catch (error) {
         console.error('Chatbot error:', error);
-        console.error('Error stack:', error.stack);
-        console.error('Error details:', {
-            message: error.message,
-            name: error.name,
-            code: error.code
-        });
         res.status(500).json({
-            response: `Sorry, I encountered an error: ${error.message}. Please check the server logs for details.`
+            response: `Sorry, I encountered an error: ${error.message}. Please try again later.`
         });
     }
 });

@@ -232,6 +232,50 @@ const AdminDashboard = () => {
         return;
       }
 
+      // Validate date requirements for device-commands report
+      if (reportType === 'device-commands') {
+        if (!startDate || !endDate) {
+          setReportError('Both start date and end date are required for Device Commands report.');
+          setReportLoading(false);
+          return;
+        }
+        
+        // Validate that dates are not in the future using Philippines timezone (UTC+8)
+        // Get current date in Philippines timezone
+        const phTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+        const today = new Date(phTime);
+        today.setHours(0, 0, 0, 0);
+        
+        // Parse selected dates (they come as YYYY-MM-DD strings)
+        const startDateObj = new Date(startDate + 'T00:00:00+08:00'); // Philippines timezone
+        const endDateObj = new Date(endDate + 'T23:59:59+08:00'); // Philippines timezone
+        
+        // Compare dates (ignore time, just compare date parts)
+        const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const startDateOnly = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+        const endDateOnly = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
+        
+        console.log('Date validation:', {
+          phTime,
+          todayDateOnly: todayDateOnly.toISOString().split('T')[0],
+          startDateOnly: startDateOnly.toISOString().split('T')[0],
+          endDateOnly: endDateOnly.toISOString().split('T')[0]
+        });
+        
+        if (startDateOnly > todayDateOnly || endDateOnly > todayDateOnly) {
+          setReportError('Date range cannot include future dates. Please select dates up to today (Philippines time).');
+          setReportLoading(false);
+          return;
+        }
+        
+        // Validate that start date is before end date
+        if (startDateOnly > endDateOnly) {
+          setReportError('Start date must be before or equal to end date.');
+          setReportLoading(false);
+          return;
+        }
+      }
+
       let url = `/api/reports/${reportType}?`;
       const params = new URLSearchParams();
       
@@ -246,6 +290,13 @@ const AdminDashboard = () => {
           params.append('hours', '24');
         } else if (reportType === 'water-usage') {
           params.append('days', '7');
+        } else if (reportType === 'user-activity') {
+          // User Activity: if no dates, use last 7 days
+          const endDateDefault = new Date();
+          const startDateDefault = new Date();
+          startDateDefault.setDate(startDateDefault.getDate() - 7);
+          params.append('startDate', startDateDefault.toISOString().split('T')[0]);
+          params.append('endDate', endDateDefault.toISOString().split('T')[0]);
         }
       }
 
@@ -264,7 +315,8 @@ const AdminDashboard = () => {
         let errorMessage = `HTTP error! status: ${response.status}`;
         try {
           const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
+          // Prefer 'message' field, fallback to 'error' field
+          errorMessage = errorData.message || errorData.error || errorMessage;
         } catch (e) {
           if (errorText) errorMessage += ` - ${errorText}`;
         }
@@ -272,6 +324,23 @@ const AdminDashboard = () => {
       }
 
       const data = await response.json();
+      console.log('Report data received:', { 
+        reportType, 
+        dataKeys: Object.keys(data),
+        dataSample: JSON.stringify(data).substring(0, 200)
+      });
+      
+      // Debug: Check if data structure matches expectations
+      if (reportType === 'sensor-summary') {
+        console.log('Sensor Summary Debug:', {
+          hasSummary: !!data.summary,
+          hasData: !!data.data,
+          summaryKeys: data.summary ? Object.keys(data.summary) : null,
+          totalReadings: data.summary?.total_readings,
+          rawData: data
+        });
+      }
+      
       setReportData(data);
     } catch (error) {
       console.error('Error generating report:', error);
@@ -511,7 +580,27 @@ const AdminDashboard = () => {
   ];
 
   const renderDeviceCommandsReport = () => {
-    if (!reportData || !reportData.summary) return null;
+    if (!reportData) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Device Commands Report</h3>
+          <p className="text-gray-600">No report data available. Please generate a report first.</p>
+        </div>
+      );
+    }
+    
+    if (!reportData.summary) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Device Commands Report</h3>
+          <p className="text-gray-600">No device commands found for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Ensure you have selected valid dates and that device commands exist for this period.
+          </p>
+        </div>
+      );
+    }
+    
     const { summary, commands } = reportData;
 
     return (
@@ -636,7 +725,11 @@ const AdminDashboard = () => {
       return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <p className="text-red-800 font-semibold">Error generating report: {reportError}</p>
-          <p className="text-red-600 text-sm mt-2">Please try again later.</p>
+          <p className="text-red-600 text-sm mt-2">
+            {reportType === 'device-commands' && reportError.includes('date')
+              ? 'Please ensure both start date and end date are selected and are not in the future.'
+              : 'Please check your input and try again.'}
+          </p>
         </div>
       );
     }
@@ -649,11 +742,396 @@ const AdminDashboard = () => {
     if (reportType === 'device-commands') {
       return renderDeviceCommandsReport();
     }
+    if (reportType === 'user-activity') {
+      return renderUserActivityReport();
+    }
+    if (reportType === 'sensor-summary') {
+      return renderSensorSummaryReport();
+    }
+    if (reportType === 'system-health') {
+      return renderSystemHealthReport();
+    }
+    if (reportType === 'water-usage') {
+      return renderWaterUsageReport();
+    }
 
-    // Add other report types here as needed
     return (
       <div className="bg-white rounded-lg p-6 border border-gray-200">
         <p className="text-gray-600">Report data will be displayed here.</p>
+      </div>
+    );
+  };
+
+  const renderUserActivityReport = () => {
+    // Handle case where reportData might be wrapped or null
+    const activityData = Array.isArray(reportData) ? reportData : (reportData?.data || []);
+    
+    if (!activityData || activityData.length === 0) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">User Activity Report</h3>
+          <p className="text-gray-600">No user activity data available for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!startDate || !endDate 
+              ? 'Tip: Select a date range to see user activity data.' 
+              : 'Try selecting a different date range or ensure users have performed actions during this period.'}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-gray-800">User Activity Report</h3>
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">User</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Total Commands</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Successful</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Failed</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pending</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">First Command</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Last Command</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {activityData.map((user, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-700">{user.username || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-700">{user.email || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-700">{user.user_role || 'N/A'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{user.total_commands || 0}</td>
+                    <td className="px-4 py-3 text-gray-700">{user.successful_commands || 0}</td>
+                    <td className="px-4 py-3 text-gray-700">{user.failed_commands || 0}</td>
+                    <td className="px-4 py-3 text-gray-700">{user.pending_commands || 0}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {user.first_command ? new Date(user.first_command).toLocaleString() : 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {user.last_command ? new Date(user.last_command).toLocaleString() : 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSensorSummaryReport = () => {
+    console.log('Rendering Sensor Summary Report:', {
+      hasReportData: !!reportData,
+      reportDataKeys: reportData ? Object.keys(reportData) : null,
+      summary: reportData?.summary,
+      thresholds: reportData?.thresholds
+    });
+    
+    // Handle case where reportData structure might vary
+    const summary = reportData?.summary || reportData?.data?.summary;
+    const thresholds = reportData?.thresholds || reportData?.data?.thresholds;
+    
+    console.log('Extracted summary:', {
+      summary,
+      totalReadings: summary?.total_readings,
+      isZero: summary?.total_readings === 0,
+      isNull: summary?.total_readings === null,
+      isUndefined: summary?.total_readings === undefined
+    });
+    
+    // Check if summary exists and has data
+    if (!summary) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
+          <p className="text-gray-600">No sensor summary data available. Summary object is missing.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Debug: reportData keys = {reportData ? Object.keys(reportData).join(', ') : 'null'}
+          </p>
+        </div>
+      );
+    }
+    
+    // Check if there are any readings (allow 0 as valid if it's actually 0)
+    if (summary.total_readings === null || summary.total_readings === undefined) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
+          <p className="text-gray-600">No sensor summary data available for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!startDate || !endDate 
+              ? 'Showing data for the last 24 hours. Select a date range to see data for a specific period.' 
+              : 'Try selecting a different date range or ensure sensor data exists for this period.'}
+          </p>
+        </div>
+      );
+    }
+    
+    // If total_readings is 0, still show the report but indicate no data
+    if (summary.total_readings === 0) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
+          <p className="text-gray-600">No sensor readings found for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!startDate || !endDate 
+              ? 'No data found in the last 24 hours. Select a date range to check a specific period.' 
+              : `No sensor data found between ${startDate} and ${endDate}. Try selecting a different date range.`}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-gray-800">Sensor Data Summary Report</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Readings</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{summary.total_readings || 0}</div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">First Reading</div>
+            <div className="text-sm font-semibold text-gray-700">
+              {summary.first_reading ? new Date(summary.first_reading).toLocaleString() : 'N/A'}
+            </div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Last Reading</div>
+            <div className="text-sm font-semibold text-gray-700">
+              {summary.last_reading ? new Date(summary.last_reading).toLocaleString() : 'N/A'}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Soil Moisture Averages</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Sensor 1:</span>
+              <span className="font-semibold text-eco-green-dark">
+                Avg: {Number(summary.avg_soil1 || 0).toFixed(2)}% (Min: {Number(summary.min_soil1 || 0).toFixed(2)}%, Max: {Number(summary.max_soil1 || 0).toFixed(2)}%)
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Sensor 2:</span>
+              <span className="font-semibold text-eco-green-dark">
+                Avg: {Number(summary.avg_soil2 || 0).toFixed(2)}% (Min: {Number(summary.min_soil2 || 0).toFixed(2)}%, Max: {Number(summary.max_soil2 || 0).toFixed(2)}%)
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Sensor 3:</span>
+              <span className="font-semibold text-eco-green-dark">
+                Avg: {Number(summary.avg_soil3 || 0).toFixed(2)}% (Min: {Number(summary.min_soil3 || 0).toFixed(2)}%, Max: {Number(summary.max_soil3 || 0).toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Environmental Conditions</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Temperature:</span>
+              <span className="font-semibold text-eco-green-dark">
+                Avg: {Number(summary.avg_temperature || 0).toFixed(2)}°C (Min: {Number(summary.min_temperature || 0).toFixed(2)}°C, Max: {Number(summary.max_temperature || 0).toFixed(2)}°C)
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Humidity:</span>
+              <span className="font-semibold text-eco-green-dark">
+                Avg: {Number(summary.avg_humidity || 0).toFixed(2)}% (Min: {Number(summary.min_humidity || 0).toFixed(2)}%, Max: {Number(summary.max_humidity || 0).toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {thresholds && thresholds.low_moisture_count > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-yellow-800 mb-2">⚠️ Low Moisture Alerts</h4>
+            <p className="text-yellow-700">Found {thresholds.low_moisture_count} readings with soil moisture below 20%</p>
+            <p className="text-yellow-700 text-sm mt-1">
+              First occurrence: {thresholds.first_low_moisture ? new Date(thresholds.first_low_moisture).toLocaleString() : 'N/A'}
+            </p>
+            <p className="text-yellow-700 text-sm">
+              Last occurrence: {thresholds.last_low_moisture ? new Date(thresholds.last_low_moisture).toLocaleString() : 'N/A'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSystemHealthReport = () => {
+    // Handle case where reportData structure might vary
+    const commands = reportData?.commands || reportData?.data?.commands;
+    const sensors = reportData?.sensors || reportData?.data?.sensors;
+    const devices = reportData?.devices || reportData?.data?.devices || [];
+    const waterAlerts = reportData?.water_alerts || reportData?.data?.water_alerts || {};
+    const overallStatus = reportData?.overall_status || reportData?.data?.overall_status || 'unknown';
+    const periodDays = reportData?.period_days || reportData?.data?.period_days || 7;
+    
+    if (!commands || !sensors) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">System Health Report</h3>
+          <p className="text-gray-600">No system health data available for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Showing data for the last {periodDays} days. System health data requires both command history and sensor readings.
+          </p>
+        </div>
+      );
+    }
+
+    const statusClass = overallStatus === 'healthy' ? 'bg-green-100 text-green-800' :
+                        overallStatus === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800';
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-gray-800">System Health Report (Last {periodDays} Days)</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Overall Status</div>
+            <div className="text-lg font-bold">
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
+                {overallStatus.toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Command Success Rate</div>
+            <div className="text-3xl font-bold text-eco-green-dark">
+              {commands.total_commands > 0 
+                ? ((Number(commands.successful) / Number(commands.total_commands)) * 100).toFixed(2) 
+                : 0}%
+            </div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Hours Since Last Reading</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{sensors.hours_since_last_reading || 0}</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Command Statistics</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Total Commands:</span>
+              <span className="font-semibold text-eco-green-dark">{commands.total_commands || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Successful:</span>
+              <span className="font-semibold text-green-600">{commands.successful || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Failed:</span>
+              <span className="font-semibold text-red-600">{commands.failed || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-700">Pending:</span>
+              <span className="font-semibold text-yellow-600">{commands.pending || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-700">Avg Response Time:</span>
+              <span className="font-semibold text-eco-green-dark">
+                {Number(commands.avg_response_time || 0).toFixed(2)}s
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        {sensors && (
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Sensor Data Availability</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-gray-700">Total Readings:</span>
+                <span className="font-semibold text-eco-green-dark">{sensors.total_readings || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-gray-700">Days with Data:</span>
+                <span className="font-semibold text-eco-green-dark">{sensors.days_with_data || 0}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {devices.length > 0 && (
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Device Performance</h4>
+            <div className="space-y-2">
+              {devices.map((device, idx) => (
+                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-700 capitalize">{device.device}:</span>
+                  <span className="font-semibold text-eco-green-dark">
+                    {device.total_commands || 0} commands, {device.successful_ons || 0} successful ONs, {device.failures || 0} failures
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderWaterUsageReport = () => {
+    // Handle case where reportData structure might vary
+    const usage = reportData?.usage || reportData?.data?.usage;
+    
+    if (!usage || (!usage.pump && !usage.valve)) {
+      return (
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Water Usage Report</h3>
+          <p className="text-gray-600">No water usage data available for the selected date range.</p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!startDate || !endDate 
+              ? 'Showing data for the last 7 days. Select a date range to see usage for a specific period.' 
+              : 'Water usage is calculated from pump and valve activation records. Ensure devices have been activated during this period.'}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Pump Activations</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{usage.pump?.total_activations || 0}</div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Pump Total ON Time</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{usage.pump?.total_on_time_minutes || 0} min</div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Valve Activations</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{usage.valve?.total_activations || 0}</div>
+          </div>
+          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Valve Total ON Time</div>
+            <div className="text-3xl font-bold text-eco-green-dark">{usage.valve?.total_on_time_minutes || 0} min</div>
+          </div>
+        </div>
       </div>
     );
   };

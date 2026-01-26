@@ -21,6 +21,52 @@ router.get('/device-commands', authenticateToken, authorizeAdmin, async (req, re
         const pool = getPool();
         const { startDate, endDate, device, status } = req.query;
         
+        // Require both startDate and endDate for device commands report
+        if (!startDate || !endDate) {
+            return res.status(400).json({ 
+                error: 'Both start date and end date are required for device commands report.',
+                message: 'Both start date and end date are required for device commands report.' 
+            });
+        }
+        
+        // Validate that dates are not in the future using Philippines timezone
+        // Get current date in Philippines timezone (UTC+8)
+        const phTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+        const today = new Date(phTime);
+        today.setHours(0, 0, 0, 0);
+        
+        // Parse selected dates (they come as YYYY-MM-DD strings)
+        // Treat them as Philippines timezone dates
+        const startDateObj = new Date(startDate + 'T00:00:00+08:00');
+        const endDateObj = new Date(endDate + 'T23:59:59+08:00');
+        
+        // Compare dates (ignore time, just compare date parts)
+        const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const startDateOnly = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+        const endDateOnly = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
+        
+        console.log('Server Date validation (Philippines time):', {
+            phTime,
+            todayDateOnly: todayDateOnly.toISOString().split('T')[0],
+            startDateOnly: startDateOnly.toISOString().split('T')[0],
+            endDateOnly: endDateOnly.toISOString().split('T')[0]
+        });
+        
+        if (startDateOnly > todayDateOnly || endDateOnly > todayDateOnly) {
+            return res.status(400).json({ 
+                error: 'Date range cannot include future dates.',
+                message: 'Date range cannot include future dates. Please select dates up to today (Philippines time).' 
+            });
+        }
+        
+        // Validate that start date is before end date
+        if (startDateOnly > endDateOnly) {
+            return res.status(400).json({ 
+                error: 'Start date must be before or equal to end date.',
+                message: 'Start date must be before or equal to end date.' 
+            });
+        }
+        
         // Debug logging
         console.log('Date filter params:', { startDate, endDate, device, status });
         
@@ -45,17 +91,13 @@ router.get('/device-commands', authenticateToken, authorizeAdmin, async (req, re
         
         const params = [];
         
-        if (startDate) {
-            // Add time to start date to include the entire day (from 00:00:00)
-            query += ` AND dc.requested_at >= CONCAT(?, ' 00:00:00')`;
-            params.push(startDate);
-        }
+        // Add time to start date to include the entire day (from 00:00:00)
+        query += ` AND dc.requested_at >= CONCAT(?, ' 00:00:00')`;
+        params.push(startDate);
         
-        if (endDate) {
-            // Add time to end date to include the entire day (up to 23:59:59)
-            query += ` AND dc.requested_at <= CONCAT(?, ' 23:59:59')`;
-            params.push(endDate);
-        }
+        // Add time to end date to include the entire day (up to 23:59:59)
+        query += ` AND dc.requested_at <= CONCAT(?, ' 23:59:59')`;
+        params.push(endDate);
         
         if (device && device !== 'all') {
             query += ` AND dc.device = ?`;
@@ -194,6 +236,8 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
         const pool = getPool();
         const { startDate, endDate, hours } = req.query;
         
+        console.log('Sensor Summary API called:', { startDate, endDate, hours });
+        
         let query = `
             SELECT 
                 COUNT(*) as total_readings,
@@ -227,19 +271,31 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
         if (hours) {
             query += ` AND timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)`;
             params.push(parseInt(hours));
+            console.log('Using hours filter:', hours);
         } else {
             if (startDate) {
                 query += ` AND timestamp >= CONCAT(?, ' 00:00:00')`;
                 params.push(startDate);
+                console.log('Using startDate filter:', startDate);
             }
             
             if (endDate) {
                 query += ` AND timestamp <= CONCAT(?, ' 23:59:59')`;
                 params.push(endDate);
+                console.log('Using endDate filter:', endDate);
             }
         }
         
+        console.log('Executing query:', query);
+        console.log('With params:', params);
+        
         const [summary] = await pool.execute(query, params);
+        
+        console.log('Query result:', {
+            rowCount: summary.length,
+            summaryData: summary[0],
+            totalReadings: summary[0]?.total_readings
+        });
         
         // Get threshold violations
         let thresholdQuery = `
@@ -268,10 +324,18 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
         
         const [thresholds] = await pool.execute(thresholdQuery, thresholdParams);
         
-        res.status(200).json({
+        const responseData = {
             summary: summary[0],
             thresholds: thresholds[0]
+        };
+        
+        console.log('Sending response:', {
+            summaryKeys: Object.keys(responseData.summary),
+            thresholdsKeys: Object.keys(responseData.thresholds),
+            totalReadings: responseData.summary.total_readings
         });
+        
+        res.status(200).json(responseData);
         
     } catch (error) {
         console.error('Error fetching sensor summary report:', error);
