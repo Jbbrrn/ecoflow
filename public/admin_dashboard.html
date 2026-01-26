@@ -182,7 +182,7 @@
                 <!-- User Management Section -->
                 <div class="dashboard-section" id="users-section">
                     <h2 class="section-title">User Management</h2>
-                    <p class="section-description">Add and manage system users including gardeners and other administrators.</p>
+                    <p class="section-description">Add and manage system users including regular users and administrators.</p>
                     <button class="btn-primary" onclick="window.location.href = 'registration.html'">
                         ➕ Register New User
                     </button>
@@ -318,9 +318,6 @@
                             </button>
                             <button class="report-type-btn" data-report="sensor-summary" onclick="selectReportType('sensor-summary')">
                                 📊 Sensor Summary
-                            </button>
-                            <button class="report-type-btn" data-report="system-health" onclick="selectReportType('system-health')">
-                                💚 System Health
                             </button>
                             <button class="report-type-btn" data-report="water-usage" onclick="selectReportType('water-usage')">
                                 💧 Water Usage
@@ -1471,17 +1468,6 @@
                 if (endDate) params.append('endDate', endDate);
                 if (device !== 'all') params.append('device', device);
                 if (status !== 'all') params.append('status', status);
-                
-                // Add default time ranges for reports that need them
-                if (!startDate && !endDate) {
-                    if (currentReportType === 'system-health') {
-                        params.append('days', '7');
-                    } else if (currentReportType === 'sensor-summary') {
-                        params.append('hours', '24');
-                    } else if (currentReportType === 'water-usage') {
-                        params.append('days', '7');
-                    }
-                }
 
                 url += params.toString();
 
@@ -1537,9 +1523,6 @@
                     break;
                 case 'sensor-summary':
                     html = displaySensorSummaryReport(data);
-                    break;
-                case 'system-health':
-                    html = displaySystemHealthReport(data);
                     break;
                 case 'water-usage':
                     html = displayWaterUsageReport(data);
@@ -1800,131 +1783,6 @@
                             <p>Last occurrence: ${thresholds.last_low_moisture ? new Date(thresholds.last_low_moisture).toLocaleString() : 'N/A'}</p>
                         </div>
                     ` : ''}
-                </div>
-            `;
-            
-            return html;
-        }
-
-        function displaySystemHealthReport(data) {
-            // Handle case where data structure might vary
-            const commands = data?.commands || data?.data?.commands;
-            const sensors = data?.sensors || data?.data?.sensors;
-            const devices = data?.devices || data?.data?.devices || [];
-            const waterAlerts = data?.water_alerts || data?.data?.water_alerts || {};
-            const overallStatus = data?.overall_status || data?.data?.overall_status || 'unknown';
-            const periodDays = data?.period_days || data?.data?.period_days || 7;
-            
-            if (!commands || !sensors) {
-                return `
-                    <div class="report-container">
-                        <h3 class="report-title">System Health Report</h3>
-                        <p class="report-error">No system health data available for the selected date range.</p>
-                    </div>
-                `;
-            }
-            
-            const statusClass = overallStatus === 'healthy' ? 'status-success' : 
-                              overallStatus === 'warning' ? 'status-pending' : 'status-failed';
-            
-            let html = `
-                <div class="report-container">
-                    <h3 class="report-title">System Health Report (Last ${periodDays} Days)</h3>
-                    
-                    <div class="report-summary-grid">
-                        <div class="summary-card">
-                            <div class="summary-label">Overall Status</div>
-                            <div class="summary-value"><span class="status-badge ${statusClass}">${overallStatus.toUpperCase()}</span></div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Command Success Rate</div>
-                            <div class="summary-value">${commands.total_commands > 0 ? ((Number(commands.successful) / Number(commands.total_commands)) * 100).toFixed(2) : 0}%</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Hours Since Last Reading</div>
-                            <div class="summary-value">${sensors.hours_since_last_reading || 0}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="report-breakdown">
-                        <h4>Command Statistics</h4>
-                        <div class="breakdown-list">
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Total Commands:</span>
-                                <span class="breakdown-value">${commands.total_commands || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Successful:</span>
-                                <span class="breakdown-value">${commands.successful || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Failed:</span>
-                                <span class="breakdown-value">${commands.failed || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Pending:</span>
-                                <span class="breakdown-value">${commands.pending || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Avg Response Time:</span>
-                                <span class="breakdown-value">${Number(commands.avg_response_time || 0).toFixed(2)}s</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="report-breakdown">
-                        <h4>Sensor Data Availability</h4>
-                        <div class="breakdown-list">
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Total Readings:</span>
-                                <span class="breakdown-value">${sensors.total_readings || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Days with Data:</span>
-                                <span class="breakdown-value">${sensors.days_with_data || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Oldest Reading:</span>
-                                <span class="breakdown-value">${sensors.oldest_reading ? new Date(sensors.oldest_reading).toLocaleString() : 'N/A'}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Newest Reading:</span>
-                                <span class="breakdown-value">${sensors.newest_reading ? new Date(sensors.newest_reading).toLocaleString() : 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    ${devices.length > 0 ? `
-                    <div class="report-breakdown">
-                        <h4>Device Performance</h4>
-                        <div class="breakdown-list">
-                            ${devices.map(device => `
-                                <div class="breakdown-item">
-                                    <span class="breakdown-label">${device.device.charAt(0).toUpperCase() + device.device.slice(1)}:</span>
-                                    <span class="breakdown-value">
-                                        ${device.total_commands || 0} commands, 
-                                        ${device.successful_ons || 0} successful ONs, 
-                                        ${device.failures || 0} failures
-                                    </span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="report-breakdown">
-                        <h4>Water Level Alerts</h4>
-                        <div class="breakdown-list">
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">Low Water Alerts:</span>
-                                <span class="breakdown-value">${waterAlerts.low_water_count || 0}</span>
-                            </div>
-                            <div class="breakdown-item">
-                                <span class="breakdown-label">High Water Alerts:</span>
-                                <span class="breakdown-value">${waterAlerts.high_water_count || 0}</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             `;
             

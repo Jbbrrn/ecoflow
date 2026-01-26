@@ -92,4 +92,75 @@ export const apiClient = {
     
     return await response.json();
   },
+
+  async register(name, email, password, role) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name, email, password, role }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Registration failed' }));
+      throw new Error(error.message || 'Registration failed');
+    }
+    
+    return await response.json();
+  },
+
+  async getUsers() {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to fetch users' }));
+      throw new Error(error.message || 'Failed to fetch users');
+    }
+    
+    return await response.json();
+  },
+
+  async updateUser(userId, updates) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(updates),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to update user' }));
+      throw new Error(error.message || 'Failed to update user');
+    }
+    
+    return await response.json();
+  },
+
+  async deleteUser(userId) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to delete user' }));
+      throw new Error(error.message || 'Failed to delete user');
+    }
+    
+    return await response.json();
+  },
 };

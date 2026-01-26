@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gardener Dashboard - Eco Flow</title>
+    <title>User Dashboard - Eco Flow</title>
     <link rel="stylesheet" href="css/dashboard-new.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,10 +41,10 @@
             
             <div class="sidebar-user">
                 <div class="user-profile">
-                    <div class="user-avatar" id="user-avatar">G</div>
+                    <div class="user-avatar" id="user-avatar">U</div>
                     <div class="user-info">
-                        <div class="user-name" id="user-name">Gardener User</div>
-                        <div class="user-role" id="user-role">Gardener</div>
+                        <div class="user-name" id="user-name">User</div>
+                        <div class="user-role" id="user-role">User</div>
                     </div>
                 </div>
             </div>
@@ -932,8 +932,8 @@
             const token = localStorage.getItem('userToken');
             const role = localStorage.getItem('userRole');
 
-            if (!token || role !== 'gardener') {
-                alert('Access Denied. Please log in as a Gardener.');
+            if (!token || role !== 'user') {
+                alert('Access Denied. Please log in as a User.');
                 window.location.href = 'login.html';
                 return;
             }
@@ -1299,3 +1299,4 @@
     <div class="chatbox-overlay" id="chatboxOverlay"></div>
 </body>
 </html>
+

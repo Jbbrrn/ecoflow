@@ -8,6 +8,8 @@ import ControlCard from '../components/ControlCard';
 import PlantConditionSummary from '../components/PlantConditionSummary';
 import Analytics from '../components/Analytics';
 import FloatingChatbotButton from '../components/FloatingChatbotButton';
+import CreateAccountModal from '../components/CreateAccountModal';
+import EditAccountModal from '../components/EditAccountModal';
 import { apiClient } from '../services/client.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -43,6 +45,11 @@ const AdminDashboard = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [reportError, setReportError] = useState(null);
+  const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [isEditAccountModalOpen, setIsEditAccountModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +71,12 @@ const AdminDashboard = () => {
     };
   }, [navigate]);
 
+  useEffect(() => {
+    if (activeSection === 'manage-accounts') {
+      fetchUsers();
+    }
+  }, [activeSection]);
+
   const fetchSensorData = async () => {
     try {
       const data = await apiClient.getData('latest');
@@ -82,6 +95,40 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Failed to fetch command status:', error);
     }
+  };
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const usersList = await apiClient.getUsers();
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`Are you sure you want to deactivate ${username}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await apiClient.deleteUser(userId);
+      await fetchUsers(); // Refresh the list
+    } catch (error) {
+      alert(error.message || 'Failed to delete user');
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setIsEditAccountModalOpen(true);
+  };
+
+  const handleRefreshUsers = () => {
+    fetchUsers();
   };
 
   const handleToggle = async (device) => {
@@ -283,24 +330,6 @@ const AdminDashboard = () => {
       
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
-      
-      // Add default time ranges for reports that need them
-      if (!startDate && !endDate) {
-        if (reportType === 'system-health') {
-          params.append('days', '7');
-        } else if (reportType === 'sensor-summary') {
-          params.append('hours', '24');
-        } else if (reportType === 'water-usage') {
-          params.append('days', '7');
-        } else if (reportType === 'user-activity') {
-          // User Activity: if no dates, use last 7 days
-          const endDateDefault = new Date();
-          const startDateDefault = new Date();
-          startDateDefault.setDate(startDateDefault.getDate() - 7);
-          params.append('startDate', startDateDefault.toISOString().split('T')[0]);
-          params.append('endDate', endDateDefault.toISOString().split('T')[0]);
-        }
-      }
 
       url += params.toString();
 
@@ -563,29 +592,6 @@ const AdminDashboard = () => {
         }
         
         filename = `sensor-summary-report-${new Date().toISOString().split('T')[0]}.csv`;
-        
-      } else if (reportType === 'system-health') {
-        // System Health Report CSV
-        csvContent = 'System Health Report\n';
-        csvContent += `Generated,${new Date().toLocaleString()}\n`;
-        if (startDate) csvContent += `Start Date,${startDate}\n`;
-        if (endDate) csvContent += `End Date,${endDate}\n`;
-        csvContent += '\n';
-        
-        // Format system health data properly
-        if (reportData.summary) {
-          csvContent += 'Health Metrics\n';
-          csvContent += 'Metric,Value\n';
-          Object.entries(reportData.summary).forEach(([key, value]) => {
-            if (typeof value === 'object' && value !== null) {
-              // Skip nested objects, they'll be handled separately
-              return;
-            }
-            csvContent += `${escapeCSV(key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))},${escapeCSV(value)}\n`;
-          });
-        }
-        
-        filename = `system-health-report-${new Date().toISOString().split('T')[0]}.csv`;
         
       } else if (reportType === 'water-usage') {
         // Water Usage Report CSV
@@ -853,114 +859,6 @@ const AdminDashboard = () => {
           });
         }
 
-      } else if (reportType === 'system-health') {
-        // System Health Report PDF
-        if (reportData) {
-          // Match the render function's data access pattern
-          const commands = reportData?.commands || reportData?.data?.commands || {};
-          const sensors = reportData?.sensors || reportData?.data?.sensors || {};
-          const waterAlerts = reportData?.water_alerts || reportData?.data?.water_alerts || {};
-          const devices = reportData?.devices || reportData?.data?.devices || [];
-          const overallStatus = reportData?.overall_status || reportData?.data?.overall_status || 'unknown';
-          const periodDays = reportData?.period_days || reportData?.data?.period_days || 7;
-          
-          // Only show data if commands and sensors exist
-          if (commands && sensors && (commands.total_commands !== undefined || sensors.total_readings !== undefined)) {
-            // Command Statistics
-            const commandData = [
-              ['Total Commands', commands.total_commands || 0],
-              ['Successful', commands.successful || 0],
-              ['Failed', commands.failed || 0],
-              ['Pending', commands.pending || 0],
-              ['Success Rate', `${commands.total_commands > 0 ? formatNum((commands.successful / commands.total_commands) * 100) : 0}%`],
-              ['Avg Response Time', `${formatNum(commands.avg_response_time)}s`]
-            ];
-            
-            autoTable(doc, {
-              startY: yPosition,
-              head: [['Command Statistics', 'Value']],
-              body: commandData,
-              theme: 'striped',
-              headStyles: { fillColor: [61, 134, 11] }
-            });
-            yPosition = doc.lastAutoTable.finalY + 10;
-
-            // Sensor Statistics
-            checkPageBreak(20);
-            const sensorData = [
-              ['Total Readings', sensors.total_readings || 0],
-              ['Days with Data', sensors.days_with_data || 0],
-              ['Oldest Reading', sensors.oldest_reading ? new Date(sensors.oldest_reading).toLocaleString() : 'N/A'],
-              ['Newest Reading', sensors.newest_reading ? new Date(sensors.newest_reading).toLocaleString() : 'N/A'],
-              ['Hours Since Last Reading', sensors.hours_since_last_reading || 0]
-            ];
-            
-            autoTable(doc, {
-              startY: yPosition,
-              head: [['Sensor Statistics', 'Value']],
-              body: sensorData,
-              theme: 'striped',
-              headStyles: { fillColor: [61, 134, 11] }
-            });
-            yPosition = doc.lastAutoTable.finalY + 10;
-
-            // Water Alerts
-            if (waterAlerts && (waterAlerts.low_water_count || waterAlerts.high_water_count)) {
-              checkPageBreak(15);
-              const alertData = [
-                ['Low Water Alerts', waterAlerts.low_water_count || 0],
-                ['High Water Alerts', waterAlerts.high_water_count || 0]
-              ];
-              
-              autoTable(doc, {
-                startY: yPosition,
-                head: [['Water Alerts', 'Count']],
-                body: alertData,
-                theme: 'striped',
-                headStyles: { fillColor: [61, 134, 11] }
-              });
-              yPosition = doc.lastAutoTable.finalY + 10;
-            }
-
-            // Device Uptime
-            if (devices && devices.length > 0) {
-              checkPageBreak(20);
-              const deviceData = devices.map(device => [
-                device.device || 'N/A',
-                device.total_commands || 0,
-                device.successful_ons || 0,
-                device.failures || 0
-              ]);
-              
-              autoTable(doc, {
-                startY: yPosition,
-                head: [['Device', 'Total Commands', 'Successful ONs', 'Failures']],
-                body: deviceData,
-                theme: 'striped',
-                headStyles: { fillColor: [61, 134, 11] }
-              });
-              yPosition = doc.lastAutoTable.finalY + 10;
-            }
-
-            // Overall Status
-            checkPageBreak(10);
-            yPosition += 5;
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            const status = overallStatus;
-            const statusColor = status === 'healthy' ? [61, 134, 11] : status === 'warning' ? [245, 158, 11] : [239, 68, 68];
-            doc.setTextColor(...statusColor);
-            doc.text(`Overall Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`, 14, yPosition);
-            doc.text(`Period: Last ${periodDays} days`, 14, yPosition + 5);
-          } else {
-            // No data message
-            yPosition += 10;
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text('No system health data available for the selected period.', 14, yPosition);
-          }
-        }
-
       } else if (reportType === 'water-usage') {
         // Water Usage Report PDF
         // Match the render function's data access pattern
@@ -1072,15 +970,6 @@ const AdminDashboard = () => {
           <path d="M18 14c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M9 9h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           <path d="M9 15h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-      )
-    },
-    { 
-      id: 'system-health', 
-      label: 'System Health', 
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )
     },
@@ -1264,9 +1153,6 @@ const AdminDashboard = () => {
     }
     if (reportType === 'sensor-summary') {
       return renderSensorSummaryReport();
-    }
-    if (reportType === 'system-health') {
-      return renderSystemHealthReport();
     }
     if (reportType === 'water-usage') {
       return renderWaterUsageReport();
@@ -1494,120 +1380,6 @@ const AdminDashboard = () => {
     );
   };
 
-  const renderSystemHealthReport = () => {
-    // Handle case where reportData structure might vary
-    const commands = reportData?.commands || reportData?.data?.commands;
-    const sensors = reportData?.sensors || reportData?.data?.sensors;
-    const devices = reportData?.devices || reportData?.data?.devices || [];
-    const waterAlerts = reportData?.water_alerts || reportData?.data?.water_alerts || {};
-    const overallStatus = reportData?.overall_status || reportData?.data?.overall_status || 'unknown';
-    const periodDays = reportData?.period_days || reportData?.data?.period_days || 7;
-    
-    if (!commands || !sensors) {
-      return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">System Health Report</h3>
-          <p className="text-gray-600">No system health data available for the selected date range.</p>
-          <p className="text-gray-500 text-sm mt-2">
-            Showing data for the last {periodDays} days. System health data requires both command history and sensor readings.
-          </p>
-        </div>
-      );
-    }
-
-    const statusClass = overallStatus === 'healthy' ? 'bg-green-100 text-green-800' :
-                        overallStatus === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800';
-
-    return (
-      <div className="space-y-6">
-        <h3 className="text-2xl font-bold text-gray-800">System Health Report (Last {periodDays} Days)</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
-            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Overall Status</div>
-            <div className="text-lg font-bold">
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
-                {overallStatus.toUpperCase()}
-              </span>
-            </div>
-          </div>
-          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
-            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Command Success Rate</div>
-            <div className="text-3xl font-bold text-eco-green-dark">
-              {commands.total_commands > 0 
-                ? ((Number(commands.successful) / Number(commands.total_commands)) * 100).toFixed(2) 
-                : 0}%
-            </div>
-          </div>
-          <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
-            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Hours Since Last Reading</div>
-            <div className="text-3xl font-bold text-eco-green-dark">{sensors.hours_since_last_reading || 0}</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Command Statistics</h4>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-700">Total Commands:</span>
-              <span className="font-semibold text-eco-green-dark">{commands.total_commands || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-700">Successful:</span>
-              <span className="font-semibold text-green-600">{commands.successful || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-700">Failed:</span>
-              <span className="font-semibold text-red-600">{commands.failed || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-700">Pending:</span>
-              <span className="font-semibold text-yellow-600">{commands.pending || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-gray-700">Avg Response Time:</span>
-              <span className="font-semibold text-eco-green-dark">
-                {Number(commands.avg_response_time || 0).toFixed(2)}s
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        {sensors && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Sensor Data Availability</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-700">Total Readings:</span>
-                <span className="font-semibold text-eco-green-dark">{sensors.total_readings || 0}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-700">Days with Data:</span>
-                <span className="font-semibold text-eco-green-dark">{sensors.days_with_data || 0}</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {devices.length > 0 && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Device Performance</h4>
-            <div className="space-y-2">
-              {devices.map((device, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-700 capitalize">{device.device}:</span>
-                  <span className="font-semibold text-eco-green-dark">
-                    {device.total_commands || 0} commands, {device.successful_ons || 0} successful ONs, {device.failures || 0} failures
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const renderWaterUsageReport = () => {
     // Handle case where reportData structure might vary
@@ -1975,6 +1747,113 @@ const AdminDashboard = () => {
                 </div>
               )}
 
+              {activeSection === 'manage-accounts' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-6"
+                >
+                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-2xl font-bold text-eco-green-dark mb-2">Manage Accounts</h2>
+                        <p className="text-gray-600">Create, edit, and manage user accounts</p>
+                      </div>
+                      <motion.button
+                        onClick={() => setIsCreateAccountModalOpen(true)}
+                        className="px-6 py-3 bg-gradient-to-r from-eco-green-dark to-eco-green-medium text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-4 focus:ring-eco-green-primary focus:ring-offset-2"
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        ➕ Create Account
+                      </motion.button>
+                    </div>
+
+                    {usersLoading ? (
+                      <div className="text-center py-12">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-eco-green-medium"></div>
+                        <p className="mt-4 text-gray-600">Loading users...</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50 border-b-2 border-gray-200">
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">ID</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Name</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Email</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Role</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Status</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Created</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {users.length === 0 ? (
+                              <tr>
+                                <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                                  No users found. Create your first account!
+                                </td>
+                              </tr>
+                            ) : (
+                              users.map((user) => (
+                                <tr key={user.user_id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-gray-700">{user.user_id}</td>
+                                  <td className="px-4 py-3 text-gray-700 font-medium">{user.username || 'N/A'}</td>
+                                  <td className="px-4 py-3 text-gray-700">{user.email || 'N/A'}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                      user.user_role === 'admin' 
+                                        ? 'bg-purple-100 text-purple-800' 
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {user.user_role === 'admin' ? '👤 Admin' : '👤 User'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                      user.is_active 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {user.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700 text-sm">
+                                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <motion.button
+                                        onClick={() => handleEditUser(user)}
+                                        className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        ✏️ Edit
+                                      </motion.button>
+                                      <motion.button
+                                        onClick={() => handleDeleteUser(user.user_id, user.username)}
+                                        className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        🗑️ Delete
+                                      </motion.button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
               {activeSection === 'reports' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -2074,6 +1953,20 @@ const AdminDashboard = () => {
       </main>
 
       <FloatingChatbotButton />
+      <CreateAccountModal 
+        isOpen={isCreateAccountModalOpen} 
+        onClose={() => setIsCreateAccountModalOpen(false)}
+        onSuccess={handleRefreshUsers}
+      />
+      <EditAccountModal
+        isOpen={isEditAccountModalOpen}
+        onClose={() => {
+          setIsEditAccountModalOpen(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
+        onSuccess={handleRefreshUsers}
+      />
     </div>
   );
 };

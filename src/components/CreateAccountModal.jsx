@@ -1,24 +1,31 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/client.js';
 
-const LoginModal = ({ isOpen, onClose }) => {
+const CreateAccountModal = ({ isOpen, onClose, onSuccess }) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('user');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
       document.body.classList.add('no-scroll');
       // Focus first input
-      const firstInput = document.getElementById('email');
+      const firstInput = document.getElementById('create-account-name');
       if (firstInput) firstInput.focus();
     } else {
       document.body.classList.remove('no-scroll');
+      // Reset form when modal closes
+      setName('');
+      setEmail('');
+      setPassword('');
+      setRole('user');
+      setMessage('');
+      setMessageType('');
     }
     return () => document.body.classList.remove('no-scroll');
   }, [isOpen]);
@@ -38,22 +45,37 @@ const LoginModal = ({ isOpen, onClose }) => {
     setMessageType('');
 
     try {
-      const result = await apiClient.login(email, password);
-      localStorage.setItem('userToken', result.token);
-      localStorage.setItem('userRole', result.userRole);
-
-      setMessage(`Welcome, ${result.username}! Redirecting...`);
+      const result = await apiClient.register(name, email, password, role);
+      setMessage(`Success! Account created for ${email}. User ID: ${result.userId}`);
       setMessageType('success');
-
-      setTimeout(() => {
-        if (result.userRole === 'admin') {
-          navigate('/admin-dashboard');
-        } else if (result.userRole === 'user') {
-          navigate('/user-dashboard');
-        }
-      }, 1000);
+      
+      // Call onSuccess callback to refresh the user list
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+          setName('');
+          setEmail('');
+          setPassword('');
+          setRole('user');
+          setMessage('');
+          setMessageType('');
+          setLoading(false);
+          onClose();
+        }, 1000);
+      } else {
+        // Reset form after successful creation
+        setTimeout(() => {
+          setName('');
+          setEmail('');
+          setPassword('');
+          setRole('user');
+          setMessage('');
+          setMessageType('');
+          setLoading(false);
+        }, 2000);
+      }
     } catch (error) {
-      setMessage(error.message || 'Invalid credentials. Please try again.');
+      setMessage(error.message || 'Failed to create account. Please try again.');
       setMessageType('error');
       setLoading(false);
     }
@@ -80,7 +102,7 @@ const LoginModal = ({ isOpen, onClose }) => {
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="loginModalTitle"
+              aria-labelledby="createAccountModalTitle"
             >
               {/* Decorative green line */}
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[60%] h-1 bg-gradient-to-r from-eco-green-light via-eco-green-medium to-eco-green-light rounded-full"></div>
@@ -88,30 +110,30 @@ const LoginModal = ({ isOpen, onClose }) => {
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/4 text-gray-700 flex items-center justify-center hover:bg-black/6 transition-colors focus:outline-none focus:ring-2 focus:ring-eco-green-primary focus:ring-offset-2"
-                aria-label="Close login form"
+                aria-label="Close create account form"
               >
                 ×
               </button>
 
               <div className="px-12 pt-12 pb-8">
                 <div className="text-center mb-8">
-                  <h2 id="loginModalTitle" className="text-4xl font-bold text-eco-green-dark mb-2">
-                    Access Your Dashboard
+                  <h2 id="createAccountModalTitle" className="text-4xl font-bold text-eco-green-dark mb-2">
+                    Create New Account
                   </h2>
-                  <p className="text-gray-600">Sign in to start managing your smart greenhouse</p>
+                  <p className="text-gray-600">Register a new user for the Eco Flow system</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-eco-green-dark mb-2">
-                      Username or Email
+                    <label htmlFor="create-account-name" className="block text-sm font-semibold text-eco-green-dark mb-2">
+                      Username
                     </label>
                     <input
                       type="text"
-                      id="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your username or email address"
+                      id="create-account-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter username"
                       required
                       autoComplete="username"
                       className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl bg-blue-50 focus:outline-none focus:ring-4 focus:ring-eco-green-primary/15 focus:border-eco-green-medium transition-all"
@@ -119,19 +141,51 @@ const LoginModal = ({ isOpen, onClose }) => {
                   </div>
 
                   <div>
-                    <label htmlFor="password" className="block text-sm font-semibold text-eco-green-dark mb-2">
+                    <label htmlFor="create-account-email" className="block text-sm font-semibold text-eco-green-dark mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      id="create-account-email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter user's email address"
+                      required
+                      autoComplete="email"
+                      className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl bg-blue-50 focus:outline-none focus:ring-4 focus:ring-eco-green-primary/15 focus:border-eco-green-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="create-account-password" className="block text-sm font-semibold text-eco-green-dark mb-2">
                       Password
                     </label>
                     <input
                       type="password"
-                      id="password"
+                      id="create-account-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder="Create a secure password"
                       required
-                      autoComplete="current-password"
+                      autoComplete="new-password"
                       className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl bg-blue-50 focus:outline-none focus:ring-4 focus:ring-eco-green-primary/15 focus:border-eco-green-medium transition-all"
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="create-account-role" className="block text-sm font-semibold text-eco-green-dark mb-2">
+                      User Role
+                    </label>
+                    <select
+                      id="create-account-role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      required
+                      className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl bg-blue-50 focus:outline-none focus:ring-4 focus:ring-eco-green-primary/15 focus:border-eco-green-medium transition-all"
+                    >
+                      <option value="user">👤 User</option>
+                      <option value="admin">👤 Admin</option>
+                    </select>
                   </div>
 
                   <motion.button
@@ -141,7 +195,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    {loading ? 'SIGNING IN...' : 'SIGN IN'}
+                    {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
                   </motion.button>
 
                   {message && (
@@ -167,4 +221,5 @@ const LoginModal = ({ isOpen, onClose }) => {
   );
 };
 
-export default LoginModal;
+export default CreateAccountModal;
+

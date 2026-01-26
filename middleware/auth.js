@@ -59,7 +59,7 @@ function authenticateService(req, res, next) {
     // Attach a service account user object for compatibility
     req.user = {
         user_id: 0,
-        role: 'gardener',
+        role: 'user',
         service_account: true
     };
     next();
@@ -75,7 +75,7 @@ function authenticateTokenOrService(req, res, next) {
     if (serviceApiKey === SERVICE_API_KEY) {
         req.user = {
             user_id: 0,
-            role: 'gardener',
+            role: 'user',
             service_account: true
         };
         return next();

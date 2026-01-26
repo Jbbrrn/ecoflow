@@ -16,8 +16,8 @@ router.post('/register', authenticateToken, authorizeAdmin, async (req, res) => 
     if (!name || !email || !password || !role) {
         return res.status(400).json({ message: 'All fields (Name, Email, Password, Role) are required.' });
     }
-    if (role !== 'admin' && role !== 'gardener') {
-        return res.status(400).json({ message: 'Invalid role specified. Must be "admin" or "gardener".' });
+    if (role !== 'admin' && role !== 'user') {
+        return res.status(400).json({ message: 'Invalid role specified. Must be "admin" or "user".' });
     }
 
     try {
@@ -50,16 +50,21 @@ router.post('/register', authenticateToken, authorizeAdmin, async (req, res) => 
  */
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+    
+    // 'email' parameter can be either username or email
+    const identifier = email;
 
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required.' });
+    if (!identifier || !password) {
+        return res.status(400).json({ message: 'Username/Email and password are required.' });
     }
 
     try {
         const pool = getPool();
+        // Check both email and username fields
         const [users] = await pool.execute(
-            `SELECT user_id, username, password_hash, user_role, is_active FROM users WHERE email = ?`,
-            [email]
+            `SELECT user_id, username, password_hash, user_role, is_active FROM users 
+             WHERE email = ? OR username = ?`,
+            [identifier, identifier]
         );
 
         const user = users[0];
@@ -107,7 +112,7 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/service-token
  * Generate a JWT token for service accounts (e.g., n8n workflows)
  * Uses SERVICE_API_KEY for authentication instead of user credentials
- * Body: { service_api_key: string, user_id?: number, role?: 'admin' | 'gardener' }
+ * Body: { service_api_key: string, user_id?: number, role?: 'admin' | 'user' }
  * If user_id and role are provided, generates token for that user
  * Otherwise, generates a service account token with default permissions
  */
@@ -144,11 +149,11 @@ router.post('/service-token', async (req, res) => {
                 role: user.user_role
             };
         } else {
-            // Generate a service account token with default gardener permissions
+            // Generate a service account token with default user permissions
             // You can modify this to use a specific service account user_id
             tokenPayload = {
                 user_id: 0, // Service account ID
-                role: 'gardener', // Default role for service accounts
+                role: 'user', // Default role for service accounts
                 service_account: true
             };
         }
@@ -168,6 +173,145 @@ router.post('/service-token', async (req, res) => {
     } catch (error) {
         console.error('Service Token Generation Error:', error);
         res.status(500).json({ message: 'Internal server error during token generation.' });
+    }
+});
+
+/**
+ * GET /api/users
+ * Get all users (Admin only)
+ */
+router.get('/users', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const pool = getPool();
+        const [users] = await pool.execute(
+            `SELECT user_id, username, email, user_role, is_active, created_at 
+             FROM users 
+             ORDER BY created_at DESC`
+        );
+        
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Internal server error while fetching users.' });
+    }
+});
+
+/**
+ * PUT /api/users/:id
+ * Update a user (Admin only)
+ * Body: { name?, email?, role?, is_active?, password? }
+ */
+router.put('/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { name, email, role, is_active, password } = req.body;
+    
+    try {
+        const pool = getPool();
+        
+        // Check if user exists
+        const [existingUsers] = await pool.execute(
+            `SELECT user_id FROM users WHERE user_id = ?`,
+            [id]
+        );
+        
+        if (existingUsers.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        
+        // Build update query dynamically
+        const updates = [];
+        const params = [];
+        
+        if (name !== undefined) {
+            updates.push('username = ?');
+            params.push(name);
+        }
+        
+        if (email !== undefined) {
+            updates.push('email = ?');
+            params.push(email);
+        }
+        
+        if (role !== undefined) {
+            if (role !== 'admin' && role !== 'user') {
+                return res.status(400).json({ message: 'Invalid role specified. Must be "admin" or "user".' });
+            }
+            updates.push('user_role = ?');
+            params.push(role);
+        }
+        
+        if (is_active !== undefined) {
+            updates.push('is_active = ?');
+            params.push(is_active ? 1 : 0);
+        }
+        
+        if (password !== undefined && password !== '') {
+            const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+            updates.push('password_hash = ?');
+            params.push(password_hash);
+        }
+        
+        if (updates.length === 0) {
+            return res.status(400).json({ message: 'No fields to update.' });
+        }
+        
+        params.push(id);
+        
+        await pool.execute(
+            `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`,
+            params
+        );
+        
+        console.log(`User ${id} updated by Admin (ID: ${req.user.user_id})`);
+        res.status(200).json({ message: 'User updated successfully.' });
+        
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: 'Email already in use.' });
+        }
+        console.error('Error updating user:', error);
+        res.status(500).json({ message: 'Internal server error while updating user.' });
+    }
+});
+
+/**
+ * DELETE /api/users/:id
+ * Delete a user (Admin only)
+ * Note: Soft delete by setting is_active = 0, or hard delete
+ */
+router.delete('/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { id } = req.params;
+    
+    // Prevent deleting yourself
+    if (parseInt(id) === req.user.user_id) {
+        return res.status(400).json({ message: 'You cannot delete your own account.' });
+    }
+    
+    try {
+        const pool = getPool();
+        
+        // Check if user exists
+        const [existingUsers] = await pool.execute(
+            `SELECT user_id FROM users WHERE user_id = ?`,
+            [id]
+        );
+        
+        if (existingUsers.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        
+        // Soft delete: set is_active = 0
+        await pool.execute(
+            `UPDATE users SET is_active = 0 WHERE user_id = ?`,
+            [id]
+        );
+        
+        console.log(`User ${id} deactivated by Admin (ID: ${req.user.user_id})`);
+        res.status(200).json({ message: 'User deactivated successfully.' });
+        
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Internal server error while deleting user.' });
     }
 });
 

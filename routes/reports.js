@@ -183,6 +183,14 @@ router.get('/user-activity', authenticateToken, authorizeAdmin, async (req, res)
         const pool = getPool();
         const { startDate, endDate } = req.query;
         
+        // Require both startDate and endDate
+        if (!startDate || !endDate) {
+            return res.status(400).json({ 
+                error: 'Both start date and end date are required for user activity report.',
+                message: 'Both start date and end date are required for user activity report.' 
+            });
+        }
+        
         // Get user activity from device commands
         let query = `
             SELECT 
@@ -204,15 +212,11 @@ router.get('/user-activity', authenticateToken, authorizeAdmin, async (req, res)
         
         const params = [];
         
-        if (startDate) {
-            query += ` AND (dc.requested_at >= CONCAT(?, ' 00:00:00') OR dc.requested_at IS NULL)`;
-            params.push(startDate);
-        }
+        query += ` AND dc.requested_at >= CONCAT(?, ' 00:00:00')`;
+        params.push(startDate);
         
-        if (endDate) {
-            query += ` AND (dc.requested_at <= CONCAT(?, ' 23:59:59') OR dc.requested_at IS NULL)`;
-            params.push(endDate);
-        }
+        query += ` AND dc.requested_at <= CONCAT(?, ' 23:59:59')`;
+        params.push(endDate);
         
         query += ` GROUP BY u.user_id, u.username, u.email, u.user_role, u.is_active ORDER BY total_commands DESC`;
         
@@ -234,9 +238,17 @@ router.get('/user-activity', authenticateToken, authorizeAdmin, async (req, res)
 router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
         const pool = getPool();
-        const { startDate, endDate, hours } = req.query;
+        const { startDate, endDate } = req.query;
         
-        console.log('Sensor Summary API called:', { startDate, endDate, hours });
+        // Require both startDate and endDate
+        if (!startDate || !endDate) {
+            return res.status(400).json({ 
+                error: 'Both start date and end date are required for sensor summary report.',
+                message: 'Both start date and end date are required for sensor summary report.' 
+            });
+        }
+        
+        console.log('Sensor Summary API called:', { startDate, endDate });
         
         let query = `
             SELECT 
@@ -268,23 +280,13 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
         
         const params = [];
         
-        if (hours) {
-            query += ` AND timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)`;
-            params.push(parseInt(hours));
-            console.log('Using hours filter:', hours);
-        } else {
-            if (startDate) {
-                query += ` AND timestamp >= CONCAT(?, ' 00:00:00')`;
-                params.push(startDate);
-                console.log('Using startDate filter:', startDate);
-            }
-            
-            if (endDate) {
-                query += ` AND timestamp <= CONCAT(?, ' 23:59:59')`;
-                params.push(endDate);
-                console.log('Using endDate filter:', endDate);
-            }
-        }
+        query += ` AND timestamp >= CONCAT(?, ' 00:00:00')`;
+        params.push(startDate);
+        console.log('Using startDate filter:', startDate);
+        
+        query += ` AND timestamp <= CONCAT(?, ' 23:59:59')`;
+        params.push(endDate);
+        console.log('Using endDate filter:', endDate);
         
         console.log('Executing query:', query);
         console.log('With params:', params);
@@ -305,22 +307,11 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
                 MAX(timestamp) as last_low_moisture
             FROM sensor_data
             WHERE (soil_moisture_1_percent < 20 OR soil_moisture_2_percent < 20 OR soil_moisture_3_percent < 20)
+            AND timestamp >= CONCAT(?, ' 00:00:00')
+            AND timestamp <= CONCAT(?, ' 23:59:59')
         `;
         
-        const thresholdParams = [];
-        if (hours) {
-            thresholdQuery += ` AND timestamp >= DATE_SUB(NOW(), INTERVAL ? HOUR)`;
-            thresholdParams.push(parseInt(hours));
-        } else {
-            if (startDate) {
-                thresholdQuery += ` AND timestamp >= CONCAT(?, ' 00:00:00')`;
-                thresholdParams.push(startDate);
-            }
-            if (endDate) {
-                thresholdQuery += ` AND timestamp <= CONCAT(?, ' 23:59:59')`;
-                thresholdParams.push(endDate);
-            }
-        }
+        const thresholdParams = [startDate, endDate];
         
         const [thresholds] = await pool.execute(thresholdQuery, thresholdParams);
         
@@ -344,92 +335,6 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
 });
 
 /**
- * GET /api/reports/system-health
- * Get system health report
- * Query params: days (default: 7)
- */
-router.get('/system-health', authenticateToken, authorizeAdmin, async (req, res) => {
-    try {
-        const pool = getPool();
-        const days = parseInt(req.query.days) || 7;
-        
-        // Command success rate
-        const [commandStats] = await pool.execute(`
-            SELECT 
-                COUNT(*) as total_commands,
-                SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) as successful,
-                SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed,
-                SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending,
-                AVG(TIMESTAMPDIFF(SECOND, requested_at, executed_at)) as avg_response_time
-            FROM device_commands
-            WHERE requested_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        `, [days]);
-        
-        // Sensor data availability
-        const [sensorStats] = await pool.execute(`
-            SELECT 
-                COUNT(*) as total_readings,
-                COUNT(DISTINCT DATE(timestamp)) as days_with_data,
-                MIN(timestamp) as oldest_reading,
-                MAX(timestamp) as newest_reading,
-                TIMESTAMPDIFF(HOUR, MAX(timestamp), NOW()) as hours_since_last_reading
-            FROM sensor_data
-            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        `, [days]);
-        
-        // Device uptime (based on successful commands)
-        const [deviceUptime] = await pool.execute(`
-            SELECT 
-                device,
-                COUNT(*) as total_commands,
-                SUM(CASE WHEN status = 'SUCCESS' AND desired_state = 'ON' THEN 1 ELSE 0 END) as successful_ons,
-                SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failures
-            FROM device_commands
-            WHERE requested_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-            GROUP BY device
-        `, [days]);
-        
-        // Water level alerts
-        const [waterAlerts] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN water_level_low_status = 1 THEN 1 ELSE 0 END) as low_water_count,
-                SUM(CASE WHEN water_level_high_status = 1 THEN 1 ELSE 0 END) as high_water_count
-            FROM sensor_data
-            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        `, [days]);
-        
-        const health = {
-            period_days: days,
-            commands: commandStats[0],
-            sensors: sensorStats[0],
-            devices: deviceUptime,
-            water_alerts: waterAlerts[0],
-            overall_status: 'healthy' // Can be enhanced with logic
-        };
-        
-        // Determine overall status
-        const commandSuccessRate = commandStats[0].total_commands > 0 
-            ? (commandStats[0].successful / commandStats[0].total_commands) * 100 
-            : 100;
-        
-        const hoursSinceLastReading = sensorStats[0].hours_since_last_reading || 0;
-        
-        if (commandSuccessRate < 80 || hoursSinceLastReading > 2) {
-            health.overall_status = 'warning';
-        }
-        if (commandSuccessRate < 50 || hoursSinceLastReading > 24) {
-            health.overall_status = 'critical';
-        }
-        
-        res.status(200).json(health);
-        
-    } catch (error) {
-        console.error('Error fetching system health report:', error);
-        res.status(500).json({ message: 'Internal server error while fetching system health report.' });
-    }
-});
-
-/**
  * GET /api/reports/water-usage
  * Get water usage report based on pump/valve activations
  * Query params: startDate, endDate, days (alternative)
@@ -437,7 +342,15 @@ router.get('/system-health', authenticateToken, authorizeAdmin, async (req, res)
 router.get('/water-usage', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
         const pool = getPool();
-        const { startDate, endDate, days } = req.query;
+        const { startDate, endDate } = req.query;
+        
+        // Require both startDate and endDate
+        if (!startDate || !endDate) {
+            return res.status(400).json({ 
+                error: 'Both start date and end date are required for water usage report.',
+                message: 'Both start date and end date are required for water usage report.' 
+            });
+        }
         
         // Get pump activation periods (simplified - assumes pump was on between ON and OFF commands)
         let query = `
@@ -451,23 +364,11 @@ router.get('/water-usage', authenticateToken, authorizeAdmin, async (req, res) =
                 requested_by
             FROM device_commands
             WHERE device IN ('pump', 'valve')
+            AND requested_at >= CONCAT(?, ' 00:00:00')
+            AND requested_at <= CONCAT(?, ' 23:59:59')
         `;
         
-        const params = [];
-        
-        if (days) {
-            query += ` AND requested_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`;
-            params.push(parseInt(days));
-        } else {
-            if (startDate) {
-                query += ` AND requested_at >= CONCAT(?, ' 00:00:00')`;
-                params.push(startDate);
-            }
-            if (endDate) {
-                query += ` AND requested_at <= CONCAT(?, ' 23:59:59')`;
-                params.push(endDate);
-            }
-        }
+        const params = [startDate, endDate];
         
         query += ` ORDER BY requested_at ASC`;
         

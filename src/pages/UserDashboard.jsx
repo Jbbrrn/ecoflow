@@ -11,7 +11,7 @@ import FloatingChatbotButton from '../components/FloatingChatbotButton';
 import { apiClient } from '../services/client.js';
 import '../components/WaterTank.css';
 
-const GardenerDashboard = () => {
+const UserDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [sensorData, setSensorData] = useState({
     air_temperature_celsius: null,
@@ -555,4 +555,5 @@ const GardenerDashboard = () => {
   );
 };
 
-export default GardenerDashboard;
+export default UserDashboard;
+
