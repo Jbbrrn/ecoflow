@@ -22,6 +22,7 @@ const EditAccountModal = ({ isOpen, onClose, user, onSuccess }) => {
       setPassword('');
       setMessage('');
       setMessageType('');
+      setLoading(false); // Reset loading state when modal opens
       // Focus first input
       const firstInput = document.getElementById('edit-account-name');
       if (firstInput) firstInput.focus();
@@ -61,6 +62,7 @@ const EditAccountModal = ({ isOpen, onClose, user, onSuccess }) => {
       await apiClient.updateUser(user.user_id, updates);
       setMessage(`Account updated successfully!`);
       setMessageType('success');
+      setLoading(false); // Reset loading state on success
       
       // Call onSuccess callback to refresh the user list
       if (onSuccess) {

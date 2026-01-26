@@ -68,6 +68,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     const checkMobile = () => {
@@ -80,6 +81,13 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
   }, []);
 
   useEffect(() => {
@@ -104,6 +112,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
   const handleLogout = () => {
     localStorage.removeItem('userToken');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
     navigate('/');
   };
 
@@ -190,16 +199,14 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
         <div className="sidebar-footer">
           <div className="user-info">
             <div className="user-avatar">
-              {userRole === 'admin' ? (
-                <div className="user-avatar-initial">A</div>
-              ) : (
-                <div className="user-avatar-initial">G</div>
-              )}
+              <div className="user-avatar-initial">
+                {username ? username.charAt(0).toUpperCase() : (userRole === 'admin' ? 'A' : 'U')}
+              </div>
             </div>
             {!isCollapsed && (
               <div className="user-details">
                 <div className="user-name">
-                  {userRole === 'admin' ? 'Admin User' : 'User'}
+                  {username || (userRole === 'admin' ? 'Admin User' : 'User')}
                 </div>
                 <div className="user-role-text">
                   {userRole === 'admin' ? 'Administrator' : 'User'}

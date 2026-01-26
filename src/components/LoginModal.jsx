@@ -41,6 +41,7 @@ const LoginModal = ({ isOpen, onClose }) => {
       const result = await apiClient.login(email, password);
       localStorage.setItem('userToken', result.token);
       localStorage.setItem('userRole', result.userRole);
+      localStorage.setItem('username', result.username);
 
       setMessage(`Welcome, ${result.username}! Redirecting...`);
       setMessageType('success');

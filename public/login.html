@@ -302,6 +302,7 @@
                 if (response.ok) {
                     localStorage.setItem('userToken', result.token); 
                     localStorage.setItem('userRole', result.userRole);
+                    localStorage.setItem('username', result.username);
                     
                     messageElement.textContent = `Welcome, ${result.username}! Redirecting...`;
                     messageElement.className = 'message message-success';
