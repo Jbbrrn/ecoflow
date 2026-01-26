@@ -9,6 +9,8 @@ import PlantConditionSummary from '../components/PlantConditionSummary';
 import Analytics from '../components/Analytics';
 import FloatingChatbotButton from '../components/FloatingChatbotButton';
 import { apiClient } from '../services/client.js';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import '../components/WaterTank.css';
 
 const AdminDashboard = () => {
@@ -371,10 +373,20 @@ const AdminDashboard = () => {
         return stringValue;
       };
 
+      // Helper to format dates
+      const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleString();
+      };
+
+      // Helper to format numbers
+      const formatNumber = (num, decimals = 2) => {
+        if (num === null || num === undefined || isNaN(num)) return 'N/A';
+        return Number(num).toFixed(decimals);
+      };
+
       if (reportType === 'device-commands') {
-        const { commands, summary } = reportData;
-        
-        // CSV Header with metadata
+        // Device Commands Report CSV
         csvContent = 'Device Commands Report\n';
         csvContent += `Generated,${new Date().toLocaleString()}\n`;
         if (startDate) csvContent += `Start Date,${startDate}\n`;
@@ -382,51 +394,53 @@ const AdminDashboard = () => {
         csvContent += '\n';
         
         // Summary Section
-        csvContent += 'Summary\n';
-        csvContent += `Total Commands,${summary?.total || 0}\n`;
-        csvContent += `Success Rate,${summary?.success_rate || 0}%\n`;
-        csvContent += `Avg Execution Time,${summary?.avg_execution_time || 0}s\n`;
-        csvContent += '\n';
-        
-        // Breakdown by Device
-        if (summary?.by_device && Object.keys(summary.by_device).length > 0) {
-          csvContent += 'By Device\n';
-          csvContent += 'Device,Count\n';
-          Object.entries(summary.by_device).forEach(([device, count]) => {
-            csvContent += `${escapeCSV(device.charAt(0).toUpperCase() + device.slice(1))},${count}\n`;
-          });
+        if (reportData.summary) {
+          csvContent += 'Summary\n';
+          csvContent += `Total Commands,${reportData.summary?.total || 0}\n`;
+          csvContent += `Success Rate,${formatNumber(reportData.summary?.success_rate)}%\n`;
+          csvContent += `Avg Execution Time,${formatNumber(reportData.summary?.avg_execution_time)}s\n`;
           csvContent += '\n';
-        }
-        
-        // Breakdown by Status
-        if (summary?.by_status && Object.keys(summary.by_status).length > 0) {
-          csvContent += 'By Status\n';
-          csvContent += 'Status,Count\n';
-          Object.entries(summary.by_status).forEach(([status, count]) => {
-            csvContent += `${escapeCSV(status)},${count}\n`;
-          });
-          csvContent += '\n';
-        }
-        
-        // Breakdown by User
-        if (summary?.by_user && Object.keys(summary.by_user).length > 0) {
-          csvContent += 'By User\n';
-          csvContent += 'User,Role,Commands\n';
-          Object.entries(summary.by_user).forEach(([user, info]) => {
-            csvContent += `${escapeCSV(info.username)},${escapeCSV(info.role)},${info.count}\n`;
-          });
-          csvContent += '\n';
+          
+          // Breakdown by Device
+          if (reportData.summary?.by_device) {
+            csvContent += 'By Device\n';
+            csvContent += 'Device,Count\n';
+            Object.entries(reportData.summary.by_device).forEach(([device, count]) => {
+              csvContent += `${escapeCSV(device.charAt(0).toUpperCase() + device.slice(1))},${count}\n`;
+            });
+            csvContent += '\n';
+          }
+          
+          // Breakdown by Status
+          if (reportData.summary?.by_status) {
+            csvContent += 'By Status\n';
+            csvContent += 'Status,Count\n';
+            Object.entries(reportData.summary.by_status).forEach(([status, count]) => {
+              csvContent += `${escapeCSV(status)},${count}\n`;
+            });
+            csvContent += '\n';
+          }
+          
+          // Breakdown by User
+          if (reportData.summary?.by_user) {
+            csvContent += 'By User\n';
+            csvContent += 'User,Role,Commands\n';
+            Object.entries(reportData.summary.by_user).forEach(([user, info]) => {
+              csvContent += `${escapeCSV(info.username)},${escapeCSV(info.role)},${info.count}\n`;
+            });
+            csvContent += '\n';
+          }
         }
         
         // Commands Data
-        if (commands && commands.length > 0) {
+        if (reportData.commands && reportData.commands.length > 0) {
           csvContent += 'Commands\n';
           const headers = ['Time', 'Device', 'Desired State', 'Actual State', 'Status', 'User', 'Execution Time (s)'];
           csvContent += headers.map(h => escapeCSV(h)).join(',') + '\n';
           
-          commands.forEach(cmd => {
+          reportData.commands.forEach(cmd => {
             const row = [
-              new Date(cmd.requested_at).toLocaleString(),
+              formatDate(cmd.requested_at),
               cmd.device || 'N/A',
               cmd.desired_state || 'N/A',
               cmd.actual_state || 'N/A',
@@ -439,6 +453,7 @@ const AdminDashboard = () => {
         }
         
         filename = `device-commands-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
       } else if (reportType === 'user-activity') {
         // User Activity Report CSV
         csvContent = 'User Activity Report\n';
@@ -447,28 +462,152 @@ const AdminDashboard = () => {
         if (endDate) csvContent += `End Date,${endDate}\n`;
         csvContent += '\n';
         
-        const headers = ['User', 'Email', 'Role', 'Status', 'Total Commands', 'Successful', 'Failed', 'Pending', 'First Command', 'Last Command'];
+        const headers = ['User ID', 'Username', 'Email', 'Role', 'Status', 'Total Commands', 'Successful', 'Failed', 'Pending', 'First Command', 'Last Command'];
         csvContent += headers.map(h => escapeCSV(h)).join(',') + '\n';
         
-        if (Array.isArray(reportData)) {
-          reportData.forEach(user => {
+        if (Array.isArray(reportData) && reportData.length > 0) {
+          reportData.forEach(activity => {
             const row = [
-              user.username || 'N/A',
-              user.email || 'N/A',
-              user.user_role || 'N/A',
-              user.is_active ? 'Active' : 'Inactive',
-              user.total_commands || 0,
-              user.successful_commands || 0,
-              user.failed_commands || 0,
-              user.pending_commands || 0,
-              user.first_command ? new Date(user.first_command).toLocaleString() : 'N/A',
-              user.last_command ? new Date(user.last_command).toLocaleString() : 'N/A'
+              activity.user_id || 'N/A',
+              activity.username || 'N/A',
+              activity.email || 'N/A',
+              activity.user_role || 'N/A',
+              activity.is_active ? 'Active' : 'Inactive',
+              activity.total_commands || 0,
+              activity.successful_commands || 0,
+              activity.failed_commands || 0,
+              activity.pending_commands || 0,
+              formatDate(activity.first_command),
+              formatDate(activity.last_command)
             ];
             csvContent += row.map(cell => escapeCSV(cell)).join(',') + '\n';
           });
         }
         
         filename = `user-activity-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
+      } else if (reportType === 'sensor-summary') {
+        // Sensor Summary Report CSV - CLEAN FORMAT
+        csvContent = 'Sensor Summary Report\n';
+        csvContent += `Generated,${new Date().toLocaleString()}\n`;
+        if (startDate) csvContent += `Start Date,${startDate}\n`;
+        if (endDate) csvContent += `End Date,${endDate}\n`;
+        csvContent += '\n';
+        
+        if (reportData.summary) {
+          const s = reportData.summary;
+          
+          // Overview Section
+          csvContent += 'Overview\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Total Readings,${s.total_readings || 0}\n`;
+          csvContent += `First Reading,${formatDate(s.first_reading)}\n`;
+          csvContent += `Last Reading,${formatDate(s.last_reading)}\n`;
+          csvContent += '\n';
+          
+          // Soil Moisture Section
+          csvContent += 'Soil Moisture - Sensor 1\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Average,${formatNumber(s.avg_soil1)}%\n`;
+          csvContent += `Minimum,${formatNumber(s.min_soil1)}%\n`;
+          csvContent += `Maximum,${formatNumber(s.max_soil1)}%\n`;
+          csvContent += '\n';
+          
+          csvContent += 'Soil Moisture - Sensor 2\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Average,${formatNumber(s.avg_soil2)}%\n`;
+          csvContent += `Minimum,${formatNumber(s.min_soil2)}%\n`;
+          csvContent += `Maximum,${formatNumber(s.max_soil2)}%\n`;
+          csvContent += '\n';
+          
+          csvContent += 'Soil Moisture - Sensor 3\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Average,${formatNumber(s.avg_soil3)}%\n`;
+          csvContent += `Minimum,${formatNumber(s.min_soil3)}%\n`;
+          csvContent += `Maximum,${formatNumber(s.max_soil3)}%\n`;
+          csvContent += '\n';
+          
+          // Temperature Section
+          csvContent += 'Temperature\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Average,${formatNumber(s.avg_temperature)}°C\n`;
+          csvContent += `Minimum,${formatNumber(s.min_temperature)}°C\n`;
+          csvContent += `Maximum,${formatNumber(s.max_temperature)}°C\n`;
+          csvContent += '\n';
+          
+          // Humidity Section
+          csvContent += 'Humidity\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Average,${formatNumber(s.avg_humidity)}%\n`;
+          csvContent += `Minimum,${formatNumber(s.min_humidity)}%\n`;
+          csvContent += `Maximum,${formatNumber(s.max_humidity)}%\n`;
+          csvContent += '\n';
+          
+          // System Status Section
+          csvContent += 'System Status\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Low Water Alerts,${s.low_water_alerts || 0}\n`;
+          csvContent += `High Water Alerts,${s.high_water_alerts || 0}\n`;
+          csvContent += `Pump On Count,${s.pump_on_count || 0}\n`;
+          csvContent += `Valve On Count,${s.valve_on_count || 0}\n`;
+          csvContent += '\n';
+        }
+        
+        // Threshold Violations Section
+        if (reportData.thresholds) {
+          csvContent += 'Threshold Violations\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Low Moisture Count,${reportData.thresholds.low_moisture_count || 0}\n`;
+          csvContent += `First Low Moisture,${formatDate(reportData.thresholds.first_low_moisture)}\n`;
+          csvContent += `Last Low Moisture,${formatDate(reportData.thresholds.last_low_moisture)}\n`;
+        }
+        
+        filename = `sensor-summary-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
+      } else if (reportType === 'system-health') {
+        // System Health Report CSV
+        csvContent = 'System Health Report\n';
+        csvContent += `Generated,${new Date().toLocaleString()}\n`;
+        if (startDate) csvContent += `Start Date,${startDate}\n`;
+        if (endDate) csvContent += `End Date,${endDate}\n`;
+        csvContent += '\n';
+        
+        // Format system health data properly
+        if (reportData.summary) {
+          csvContent += 'Health Metrics\n';
+          csvContent += 'Metric,Value\n';
+          Object.entries(reportData.summary).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+              // Skip nested objects, they'll be handled separately
+              return;
+            }
+            csvContent += `${escapeCSV(key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))},${escapeCSV(value)}\n`;
+          });
+        }
+        
+        filename = `system-health-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
+      } else if (reportType === 'water-usage') {
+        // Water Usage Report CSV
+        csvContent = 'Water Usage Report\n';
+        csvContent += `Generated,${new Date().toLocaleString()}\n`;
+        if (startDate) csvContent += `Start Date,${startDate}\n`;
+        if (endDate) csvContent += `End Date,${endDate}\n`;
+        csvContent += '\n';
+        
+        if (reportData.summary) {
+          csvContent += 'Usage Summary\n';
+          csvContent += 'Metric,Value\n';
+          Object.entries(reportData.summary).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+              return;
+            }
+            csvContent += `${escapeCSV(key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))},${escapeCSV(value)}\n`;
+          });
+        }
+        
+        filename = `water-usage-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
       } else {
         // Generic export for other report types
         csvContent = `${reportType} Report\n`;
@@ -476,27 +615,40 @@ const AdminDashboard = () => {
         if (startDate) csvContent += `Start Date,${startDate}\n`;
         if (endDate) csvContent += `End Date,${endDate}\n`;
         csvContent += '\n';
-        csvContent += 'Data\n';
         
         // Try to convert report data to CSV format
         if (Array.isArray(reportData)) {
           if (reportData.length > 0) {
             const keys = Object.keys(reportData[0]);
-            csvContent += keys.map(k => escapeCSV(k)).join(',') + '\n';
+            csvContent += keys.map(k => escapeCSV(k.replace(/_/g, ' '))).join(',') + '\n';
             reportData.forEach(item => {
-              const row = keys.map(key => item[key] || 'N/A');
+              const row = keys.map(key => {
+                const val = item[key];
+                if (val === null || val === undefined) return 'N/A';
+                if (typeof val === 'object') return JSON.stringify(val);
+                return val;
+              });
               csvContent += row.map(cell => escapeCSV(cell)).join(',') + '\n';
             });
           }
-        } else {
-          // For object data, create key-value pairs
+        } else if (typeof reportData === 'object') {
+          // Flatten nested objects
           csvContent += 'Key,Value\n';
-          Object.entries(reportData).forEach(([key, value]) => {
-            if (typeof value === 'object' && value !== null) {
-              csvContent += `${escapeCSV(key)},${escapeCSV(JSON.stringify(value))}\n`;
-            } else {
-              csvContent += `${escapeCSV(key)},${escapeCSV(value)}\n`;
-            }
+          const flattenObject = (obj, prefix = '') => {
+            const result = [];
+            Object.entries(obj).forEach(([key, value]) => {
+              const newKey = prefix ? `${prefix}.${key}` : key;
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                result.push(...flattenObject(value, newKey));
+              } else {
+                result.push([newKey.replace(/_/g, ' '), value]);
+              }
+            });
+            return result;
+          };
+          
+          flattenObject(reportData).forEach(([key, value]) => {
+            csvContent += `${escapeCSV(key)},${escapeCSV(value)}\n`;
           });
         }
         
@@ -520,6 +672,183 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error exporting CSV:', error);
       alert('Failed to export CSV. Please try again.');
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (!reportData) {
+      alert('Please generate a report first.');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Helper function to add a new page if needed
+      const checkPageBreak = (requiredSpace = 20) => {
+        if (yPosition + requiredSpace > doc.internal.pageSize.getHeight() - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+      };
+
+      // Report Header
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      const reportTitle = `${reportType.charAt(0).toUpperCase() + reportType.slice(1).replace(/-/g, ' ')} Report`;
+      doc.text(reportTitle, 14, yPosition);
+      yPosition += 10;
+
+      // Metadata
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, yPosition);
+      yPosition += 5;
+      if (startDate) {
+        doc.text(`Start Date: ${startDate}`, 14, yPosition);
+        yPosition += 5;
+      }
+      if (endDate) {
+        doc.text(`End Date: ${endDate}`, 14, yPosition);
+        yPosition += 5;
+      }
+      yPosition += 5;
+
+      if (reportType === 'device-commands') {
+        // Summary Table
+        if (reportData.summary) {
+          const summaryData = [
+            ['Total Commands', reportData.summary.total || 0],
+            ['Success Rate', `${(reportData.summary.success_rate || 0).toFixed(2)}%`],
+            ['Avg Execution Time', `${(reportData.summary.avg_execution_time || 0).toFixed(2)}s`]
+          ];
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Metric', 'Value']],
+            body: summaryData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+        }
+
+        // Commands Table
+        if (reportData.commands && reportData.commands.length > 0) {
+          checkPageBreak(30);
+          const commandsData = reportData.commands.map(cmd => [
+            new Date(cmd.requested_at).toLocaleString(),
+            cmd.device || 'N/A',
+            cmd.desired_state || 'N/A',
+            cmd.actual_state || 'N/A',
+            cmd.status || 'N/A',
+            cmd.username || 'Unknown',
+            cmd.execution_time_seconds ? `${cmd.execution_time_seconds}s` : 'N/A'
+          ]);
+
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Time', 'Device', 'Desired State', 'Actual State', 'Status', 'User', 'Execution Time']],
+            body: commandsData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] },
+            styles: { fontSize: 8 },
+            margin: { left: 14, right: 14 }
+          });
+        }
+
+      } else if (reportType === 'sensor-summary') {
+        if (reportData.summary) {
+          const s = reportData.summary;
+          
+          // Overview
+          const overviewData = [
+            ['Total Readings', s.total_readings || 0],
+            ['First Reading', new Date(s.first_reading).toLocaleString()],
+            ['Last Reading', new Date(s.last_reading).toLocaleString()]
+          ];
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Overview', '']],
+            body: overviewData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+
+          // Soil Moisture
+          checkPageBreak(30);
+          const soilData = [
+            ['Sensor 1 - Average', `${(s.avg_soil1 || 0).toFixed(2)}%`],
+            ['Sensor 1 - Minimum', `${(s.min_soil1 || 0).toFixed(2)}%`],
+            ['Sensor 1 - Maximum', `${(s.max_soil1 || 0).toFixed(2)}%`],
+            ['Sensor 2 - Average', `${(s.avg_soil2 || 0).toFixed(2)}%`],
+            ['Sensor 2 - Minimum', `${(s.min_soil2 || 0).toFixed(2)}%`],
+            ['Sensor 2 - Maximum', `${(s.max_soil2 || 0).toFixed(2)}%`],
+            ['Sensor 3 - Average', `${(s.avg_soil3 || 0).toFixed(2)}%`],
+            ['Sensor 3 - Minimum', `${(s.min_soil3 || 0).toFixed(2)}%`],
+            ['Sensor 3 - Maximum', `${(s.max_soil3 || 0).toFixed(2)}%`]
+          ];
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Soil Moisture', 'Value']],
+            body: soilData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+
+          // Temperature & Humidity
+          checkPageBreak(20);
+          const envData = [
+            ['Temperature - Average', `${(s.avg_temperature || 0).toFixed(2)}°C`],
+            ['Temperature - Minimum', `${(s.min_temperature || 0).toFixed(2)}°C`],
+            ['Temperature - Maximum', `${(s.max_temperature || 0).toFixed(2)}°C`],
+            ['Humidity - Average', `${(s.avg_humidity || 0).toFixed(2)}%`],
+            ['Humidity - Minimum', `${(s.min_humidity || 0).toFixed(2)}%`],
+            ['Humidity - Maximum', `${(s.max_humidity || 0).toFixed(2)}%`]
+          ];
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Environment', 'Value']],
+            body: envData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+        }
+
+      } else if (reportType === 'user-activity') {
+        if (Array.isArray(reportData) && reportData.length > 0) {
+          const activityData = reportData.map(activity => [
+            activity.username || 'N/A',
+            activity.email || 'N/A',
+            activity.user_role || 'N/A',
+            activity.is_active ? 'Active' : 'Inactive',
+            activity.total_commands || 0,
+            activity.successful_commands || 0,
+            activity.failed_commands || 0,
+            activity.pending_commands || 0
+          ]);
+
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Username', 'Email', 'Role', 'Status', 'Total', 'Success', 'Failed', 'Pending']],
+            body: activityData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] },
+            styles: { fontSize: 8 }
+          });
+        }
+      }
+
+      // Save PDF
+      const filename = `${reportType}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF. Please try again.');
     }
   };
 
@@ -1526,6 +1855,13 @@ const AdminDashboard = () => {
                           className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Export CSV
+                        </button>
+                        <button
+                          onClick={handleExportPDF}
+                          disabled={!reportData}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-2"
+                        >
+                          Export PDF
                         </button>
                       </div>
                     </div>
