@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { authenticateToken, authenticateDevice } = require('../middleware/auth');
+const { sendSprinklerActivationNotification } = require('../services/emailService');
 
 /**
  * POST /api/commands/send
@@ -197,14 +198,15 @@ router.post('/update', authenticateDevice, async (req, res) => {
 
         // If command was successful, update the latest sensor_data row
         if (status === 'SUCCESS' && actual_state) {
-            // Get the device type from the command
+            // Get the device type and user info from the command
             const [commandRows] = await pool.execute(
-                `SELECT device FROM device_commands WHERE command_id = ?`,
+                `SELECT device, requested_by FROM device_commands WHERE command_id = ?`,
                 [command_id]
             );
 
             if (commandRows.length > 0) {
                 const device = commandRows[0].device;
+                const requestedBy = commandRows[0].requested_by;
                 const statusValue = actual_state === 'ON' ? 1 : 0;
                 const statusColumn = device === 'pump' ? 'pump_status' : 'valve_status';
 
@@ -224,6 +226,34 @@ router.post('/update', authenticateDevice, async (req, res) => {
                 }
 
                 console.log(`Updated ${statusColumn} to ${statusValue} in latest sensor_data row`);
+
+                // Send email notification if pump was successfully activated
+                if (device === 'pump' && actual_state === 'ON') {
+                    // Get username for notification
+                    let username = 'Unknown User';
+                    try {
+                        const [userRows] = await pool.execute(
+                            `SELECT username FROM users WHERE user_id = ?`,
+                            [requestedBy]
+                        );
+                        if (userRows.length > 0) {
+                            username = userRows[0].username;
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch username for notification:', err);
+                    }
+
+                    // Send email notification asynchronously (don't block the response)
+                    const commandData = {
+                        device: device,
+                        desired_state: 'ON',
+                        status: 'SUCCESS'
+                    };
+                    
+                    sendSprinklerActivationNotification(commandData, username).catch(error => {
+                        console.error('Failed to send sprinkler activation email:', error);
+                    });
+                }
             }
         }
 

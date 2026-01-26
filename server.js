@@ -41,7 +41,8 @@ app.use(express.static('public'));
 // This must come AFTER static middleware so assets are served first
 app.use((req, res, next) => {
     // Skip API routes and health check
-    if (req.path.startsWith('/api/') || req.path === '/health') {
+    if (req.path.startsWith('/api/') || 
+        req.path === '/health') {
         return next();
     }
     

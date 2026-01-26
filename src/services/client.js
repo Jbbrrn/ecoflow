@@ -44,36 +44,50 @@ export const apiClient = {
 
   async sendCommand(device, state) {
     const token = localStorage.getItem('userToken');
-    const response = await fetch(`${API_BASE_URL}/commands/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ device, state }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Command failed');
+    try {
+      const response = await fetch(`${API_BASE_URL}/commands/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ device, state }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Command failed' }));
+        throw new Error(error.message || 'Command failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        throw new Error('Cannot connect to server. Please make sure the backend server is running on port 5000.');
+      }
+      throw error;
     }
-    
-    return await response.json();
   },
 
   async getCommandStatus() {
     const token = localStorage.getItem('userToken');
-    const response = await fetch(`${API_BASE_URL}/commands/status`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch command status');
+    try {
+      const response = await fetch(`${API_BASE_URL}/commands/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch command status');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        throw new Error('Cannot connect to server. Please make sure the backend server is running on port 5000.');
+      }
+      throw error;
     }
-    
-    return await response.json();
   },
 
   // Generic GET method for API calls

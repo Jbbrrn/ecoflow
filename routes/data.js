@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { authenticateToken, authenticateDevice, authenticateTokenOrService } = require('../middleware/auth');
+const { sendCriticalMoistureAlert } = require('../services/emailService');
 
 /**
  * POST /api/data/ingest
@@ -67,6 +68,26 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
         );
         
         console.log(`Data ingested successfully for ${device_id}. Temp: ${temperature}°C, Soil: ${soil1}%, ${soil2}%, ${soil3}%`);
+        
+        // Check for critical moisture levels and send email notification
+        const sensorData = {
+            timestamp: timestampValue,
+            soil_moisture_1_percent: soil1,
+            soil_moisture_2_percent: soil2,
+            soil_moisture_3_percent: soil3,
+            air_temperature_celsius: temperature,
+            air_humidity_percent: humidity
+        };
+        
+        // Check if any sensor is critical (< 20%)
+        const hasCriticalMoisture = [soil1, soil2, soil3].some(val => val !== null && val < 20);
+        
+        if (hasCriticalMoisture) {
+            // Send email notification asynchronously (don't block the response)
+            sendCriticalMoistureAlert(sensorData).catch(error => {
+                console.error('Failed to send critical moisture alert email:', error);
+            });
+        }
         
         res.status(202).json({ 
             message: 'Data accepted and stored.', 
@@ -166,8 +187,6 @@ router.get('/history', authenticateTokenOrService, async (req, res) => {
         });
         
         res.status(200).json(filteredRows);
-
-        res.status(200).json(rows);
 
     } catch (error) {
         console.error('Error fetching historical sensor data:', error);
