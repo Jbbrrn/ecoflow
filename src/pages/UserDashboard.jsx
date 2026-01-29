@@ -12,6 +12,7 @@ import { apiClient } from '../services/client.js';
 import '../components/WaterTank.css';
 
 const UserDashboard = () => {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [sensorData, setSensorData] = useState({
     air_temperature_celsius: null,
@@ -227,16 +228,32 @@ const UserDashboard = () => {
 
   return (
     <div className="flex h-screen bg-eco-green-bg overflow-hidden">
-      <DashboardSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      <DashboardSidebar
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       <main className="flex-1 dashboard-main-content overflow-y-auto">
-        <header className="bg-white shadow-sm p-6">
-          <h1 className="text-3xl font-bold text-eco-green-dark">Welcome to Eco Flow Dashboard</h1>
+        <header className="bg-white shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            className="md:hidden flex-shrink-0 p-2 rounded-lg text-eco-green-dark hover:bg-eco-green-bg focus:outline-none focus:ring-2 focus:ring-eco-green-light min-w-[44px] min-h-[44px] flex items-center justify-center"
+            onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <span className="text-2xl" aria-hidden="true">☰</span>
+          </button>
+          <h1 className="text-2xl md:text-3xl font-bold text-eco-green-dark flex-1 min-w-0">Welcome to Eco Flow Dashboard</h1>
         </header>
 
         <div className="p-6">
           {activeSection === 'dashboard' && (
             <div className="space-y-6">
+              {/* Plant Condition Summary — first so users see understandable context */}
+              <PlantConditionSummary sensorData={sensorData} />
+
               {/* Soil Moisture Sensors Card Container */}
               <div className="sensors-card-container">
                 <div className="sensors-card-title">
@@ -467,17 +484,13 @@ const UserDashboard = () => {
                 </motion.div>
               </div>
 
-              {/* Plant Condition Summary - Below the three cards */}
-              <PlantConditionSummary sensorData={sensorData} />
+              {/* Analytics — trends and charts on the same page */}
+              <Analytics />
 
               {loading && (
                 <div className="text-center text-gray-500">Loading sensor data...</div>
               )}
             </div>
-          )}
-
-          {activeSection === 'analytics' && (
-            <Analytics />
           )}
 
           {activeSection === 'controls' && (
@@ -495,9 +508,9 @@ const UserDashboard = () => {
                     and manually operate the water pump and valve when needed. This is useful for testing, maintenance, or when you 
                     want to water your plants immediately.
                   </p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800 font-semibold mb-2">📋 How to Use:</p>
-                    <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-800 font-semibold mb-2">📋 How to Use:</p>
+                    <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
                       <li>Click the toggle switch on any control card to turn it ON or OFF</li>
                       <li>The switch will show "Active" when the device is running</li>
                       <li>Monitor the status indicator to see if the command was successful</li>

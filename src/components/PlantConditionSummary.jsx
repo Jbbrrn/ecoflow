@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { apiClient } from '../services/client';
 
 // SVG Icon Components
 const PlantIcon = () => (
@@ -161,9 +162,60 @@ const PlantConditionSummary = ({ sensorData }) => {
       soil3
     };
   }, [sensorData]);
-  
+
+  const [aiSummary, setAiSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(false);
+  const debounceRef = useRef(null);
+  const lastSummaryTimestampRef = useRef(null);
+
+  useEffect(() => {
+    const hasData = sensorData && (
+      sensorData.air_temperature_celsius != null ||
+      sensorData.air_humidity_percent != null ||
+      sensorData.soil_moisture_1_percent != null
+    );
+    if (!hasData) return;
+
+    const readingTimestamp = sensorData.timestamp != null ? String(sensorData.timestamp) : null;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      if (lastSummaryTimestampRef.current === readingTimestamp) return;
+      lastSummaryTimestampRef.current = readingTimestamp;
+      setSummaryLoading(true);
+      setSummaryError(false);
+      apiClient.getPlantSummary({
+        sensorData,
+        condition: plantCondition.condition,
+        attentionItems: plantCondition.attentionItems,
+      }).then((data) => {
+        setSummaryLoading(false);
+        if (data.fallback || !data.summary) {
+          setSummaryError(true);
+          setAiSummary(null);
+        } else {
+          setAiSummary(data.summary);
+          setSummaryError(false);
+        }
+      }).catch(() => {
+        setSummaryLoading(false);
+        setSummaryError(true);
+        setAiSummary(null);
+      });
+    }, 1500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [sensorData]);
+
+  const showAiSummary = aiSummary && !summaryError && !summaryLoading;
+  const showFallbackRows = !showAiSummary && !summaryLoading;
+
   const { ConditionIcon } = plantCondition;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -207,66 +259,78 @@ const PlantConditionSummary = ({ sensorData }) => {
         </div>
       </div>
       
-      {/* Detailed Conditions */}
-      <div className="space-y-3 mb-6">
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div style={{ color: plantCondition.tempStatus.color }}>
-              {(() => {
-                const Icon = plantCondition.tempStatus.Icon;
-                return <Icon />;
-              })()}
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-gray-700">Temperature</span>
-              <p className="text-xs text-gray-500">{plantCondition.tempStatus.status}</p>
-            </div>
+      {/* AI summary (plain language) or loading / fallback */}
+      <div className="mb-6">
+        {summaryLoading && (
+          <div className="p-4 bg-gray-50 rounded-lg text-gray-500 text-sm italic">
+            Getting your summary…
           </div>
-          <span className="text-sm font-semibold text-gray-700">{plantCondition.temp.toFixed(1)}°C</span>
-        </div>
-        
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div style={{ color: plantCondition.humidityStatus.color }}>
-              {(() => {
-                const Icon = plantCondition.humidityStatus.Icon;
-                return <Icon />;
-              })()}
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-gray-700">Humidity</span>
-              <p className="text-xs text-gray-500">{plantCondition.humidityStatus.status}</p>
-            </div>
-          </div>
-          <span className="text-sm font-semibold text-gray-700">{plantCondition.humidity.toFixed(1)}%</span>
-        </div>
-        
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div style={{ color: plantCondition.soilStatus.color }}>
-              {(() => {
-                const Icon = plantCondition.soilStatus.Icon;
-                return <Icon />;
-              })()}
-            </div>
-            <div className="flex-1">
-              <span className="text-sm font-semibold text-gray-700">Soil Moisture</span>
-              <p className="text-xs text-gray-500">{plantCondition.soilStatus.status}</p>
-              <div className="flex gap-4 mt-1">
-                <span className="text-xs text-gray-600">
-                  Sensor 1: <span className="font-semibold">{plantCondition.soil1 > 0 ? `${plantCondition.soil1.toFixed(0)}%` : '--'}</span>
-                </span>
-                <span className="text-xs text-gray-600">
-                  Sensor 2: <span className="font-semibold">{plantCondition.soil2 > 0 ? `${plantCondition.soil2.toFixed(0)}%` : '--'}</span>
-                </span>
-                <span className="text-xs text-gray-600">
-                  Sensor 3: <span className="font-semibold">{plantCondition.soil3 > 0 ? `${plantCondition.soil3.toFixed(0)}%` : '--'}</span>
-                </span>
+        )}
+        {showAiSummary && (
+          <p className="p-4 bg-eco-green-bg/50 rounded-lg text-gray-700 leading-relaxed">
+            {aiSummary}
+          </p>
+        )}
+        {showFallbackRows && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div style={{ color: plantCondition.tempStatus.color }}>
+                  {(() => {
+                    const Icon = plantCondition.tempStatus.Icon;
+                    return <Icon />;
+                  })()}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-gray-700">Temperature</span>
+                  <p className="text-xs text-gray-500">{plantCondition.tempStatus.status}</p>
+                </div>
               </div>
+              <span className="text-sm font-semibold text-gray-700">{plantCondition.temp.toFixed(1)}°C</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div style={{ color: plantCondition.humidityStatus.color }}>
+                  {(() => {
+                    const Icon = plantCondition.humidityStatus.Icon;
+                    return <Icon />;
+                  })()}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-gray-700">Humidity</span>
+                  <p className="text-xs text-gray-500">{plantCondition.humidityStatus.status}</p>
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-gray-700">{plantCondition.humidity.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div style={{ color: plantCondition.soilStatus.color }}>
+                  {(() => {
+                    const Icon = plantCondition.soilStatus.Icon;
+                    return <Icon />;
+                  })()}
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-gray-700">Soil Moisture</span>
+                  <p className="text-xs text-gray-500">{plantCondition.soilStatus.status}</p>
+                  <div className="flex gap-4 mt-1">
+                    <span className="text-xs text-gray-600">
+                      Sensor 1: <span className="font-semibold">{plantCondition.soil1 > 0 ? `${plantCondition.soil1.toFixed(0)}%` : '--'}</span>
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      Sensor 2: <span className="font-semibold">{plantCondition.soil2 > 0 ? `${plantCondition.soil2.toFixed(0)}%` : '--'}</span>
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      Sensor 3: <span className="font-semibold">{plantCondition.soil3 > 0 ? `${plantCondition.soil3.toFixed(0)}%` : '--'}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-gray-700">{plantCondition.avgSoil}%</span>
             </div>
           </div>
-          <span className="text-sm font-semibold text-gray-700">{plantCondition.avgSoil}%</span>
-        </div>
+        )}
       </div>
       
       {/* Attention Needed */}

@@ -13,6 +13,7 @@ const dataRoutes = require('./routes/data');
 const commandRoutes = require('./routes/commands');
 const reportRoutes = require('./routes/reports');
 const chatbotRoutes = require('./routes/chatbot');
+const { sendCriticalMoistureAlert, sendSprinklerActivationNotification } = require('./services/emailService');
 
 const app = express();
 
@@ -31,6 +32,93 @@ app.use('/api', chatbotRoutes);
 // Health check endpoint for Render (must work immediately)
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
+});
+
+// Test endpoints for email notifications
+app.post('/api/test-email/critical-moisture', async (req, res) => {
+    try {
+        console.log('[TEST] Critical moisture email test requested');
+        
+        // Create test sensor data with critical moisture levels
+        const testSensorData = {
+            soil_moisture_1_percent: 15, // Critical: < 20%
+            soil_moisture_2_percent: 18, // Critical: < 20%
+            soil_moisture_3_percent: 12, // Critical: < 20%
+            air_temperature_celsius: 25.5,
+            air_humidity_percent: 65,
+            timestamp: new Date()
+        };
+        
+        const result = await sendCriticalMoistureAlert(testSensorData);
+        
+        if (result.success) {
+            res.status(200).json({
+                success: true,
+                message: 'Critical moisture alert email sent successfully',
+                details: {
+                    recipients: result.recipients,
+                    messageId: result.messageId
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send critical moisture alert email',
+                error: result.message || result.error
+            });
+        }
+    } catch (error) {
+        console.error('[TEST] Error sending critical moisture test email:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error sending test email',
+            error: error.message
+        });
+    }
+});
+
+app.post('/api/test-email/pump-activation', async (req, res) => {
+    try {
+        console.log('[TEST] Pump activation email test requested');
+        
+        // Get optional parameters from request body
+        const { username } = req.body;
+        const requestedBy = username || 'Test User';
+        
+        // Create test command data
+        const testCommandData = {
+            device: 'pump',
+            desired_state: 'ON',
+            status: 'SUCCESS'
+        };
+        
+        const result = await sendSprinklerActivationNotification(testCommandData, requestedBy);
+        
+        if (result.success) {
+            res.status(200).json({
+                success: true,
+                message: 'Pump activation notification email sent successfully',
+                details: {
+                    recipients: result.recipients,
+                    messageId: result.messageId,
+                    requestedBy: requestedBy
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send pump activation notification email',
+                error: result.message || result.error
+            });
+        }
+    } catch (error) {
+        console.error('[TEST] Error sending pump activation test email:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error sending test email',
+            error: error.message
+        });
+    }
 });
 
 // Serve static files: dist folder first (React build), then public folder (legacy files)

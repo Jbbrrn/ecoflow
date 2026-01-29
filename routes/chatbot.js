@@ -378,5 +378,146 @@ router.post('/chatbot', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/summary
+ * Generate a short, plain-language plant condition summary for the dashboard using OpenAI.
+ * Body: { sensorData, condition, attentionItems }
+ */
+router.post('/summary', async (req, res) => {
+    try {
+        if (!OPENAI_API_KEY) {
+            return res.status(503).json({
+                summary: null,
+                fallback: true,
+                error: 'Summary service is not configured.'
+            });
+        }
+
+        const { sensorData = {}, condition = 'Good', attentionItems = [] } = req.body;
+        const temp = parseFloat(sensorData.air_temperature_celsius) || 0;
+        const humidity = parseFloat(sensorData.air_humidity_percent) || 0;
+        const s1 = parseFloat(sensorData.soil_moisture_1_percent) || 0;
+        const s2 = parseFloat(sensorData.soil_moisture_2_percent) || 0;
+        const s3 = parseFloat(sensorData.soil_moisture_3_percent) || 0;
+
+        const systemPrompt = `You are a friendly greenhouse assistant. Given sensor data and the current plant condition, write 2-3 short sentences in plain language for non-experts (e.g. farmers, home gardeners). No jargon. Be warm and helpful. If there are issues in the "Attention items" list, suggest one simple action. If everything is good, say so briefly. Keep the reply under 80 words. Output only the summary text, no headings or bullet points.`;
+
+        const userContent = `Current condition: ${condition}.
+Temperature: ${temp.toFixed(1)}°C. Humidity: ${humidity.toFixed(1)}%.
+Soil moisture: Sensor 1: ${s1}%, Sensor 2: ${s2}%, Sensor 3: ${s3}%.
+Attention items: ${attentionItems.length ? attentionItems.join('; ') : 'None'}.
+Write a brief, easy-to-understand summary for the dashboard.`;
+
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                temperature: 0.4,
+                max_tokens: 150,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userContent }
+                ]
+            })
+        });
+
+        if (!openaiResponse.ok) {
+            const errData = await openaiResponse.json().catch(() => ({}));
+            if (openaiResponse.status === 401) {
+                return res.status(503).json({ summary: null, fallback: true, error: 'API key invalid.' });
+            }
+            if (openaiResponse.status === 429) {
+                return res.status(503).json({ summary: null, fallback: true, error: 'Service busy.' });
+            }
+            return res.status(500).json({ summary: null, fallback: true, error: 'Summary failed.' });
+        }
+
+        const data = await openaiResponse.json();
+        const summary = (data.choices?.[0]?.message?.content || '').trim();
+
+        res.json({ summary: summary || null, fallback: !summary });
+    } catch (error) {
+        console.error('Summary error:', error);
+        res.status(500).json({
+            summary: null,
+            fallback: true,
+            error: error.message || 'Summary failed.'
+        });
+    }
+});
+
+/**
+ * POST /api/summary/card-meanings
+ * Generate short "What this means" text for the three analytics cards (soil, temperature, humidity).
+ * Body: { soil: { sensor1: { current }, sensor2: { current }, sensor3: { current } }, temperature: { current }, humidity: { current } }
+ * Returns: { soil: "...", temperature: "...", humidity: "..." } or fallback.
+ */
+router.post('/summary/card-meanings', async (req, res) => {
+    try {
+        if (!OPENAI_API_KEY) {
+            return res.status(503).json({ fallback: true, error: 'Service not configured.' });
+        }
+
+        const { soil = {}, temperature = {}, humidity = {} } = req.body;
+        const s1 = Number(soil.sensor1?.current) || 0;
+        const s2 = Number(soil.sensor2?.current) || 0;
+        const s3 = Number(soil.sensor3?.current) || 0;
+        const temp = Number(temperature.current) || 0;
+        const hum = Number(humidity.current) || 0;
+
+        const systemPrompt = `You are a friendly greenhouse assistant. Given current sensor readings, output exactly three short "What this means" sentences: one for soil moisture, one for temperature, one for humidity. Each sentence should be 1-2 lines, plain language for non-experts. Base the text on the actual numbers (e.g. if soil is dry say they need water; if temp is ideal say so). Output valid JSON only, with keys: "soil", "temperature", "humidity". No markdown, no code block. Example: {"soil":"Your plants have enough water.","temperature":"Temperature is ideal.","humidity":"Humidity is comfortable."}`;
+
+        const userContent = `Soil: Sensor 1 ${s1}%, Sensor 2 ${s2}%, Sensor 3 ${s3}%. Temperature: ${temp}°C. Humidity: ${hum}%. Return JSON with soil, temperature, humidity.`;
+
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                temperature: 0.3,
+                max_tokens: 200,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userContent }
+                ]
+            })
+        });
+
+        if (!openaiResponse.ok) {
+            if (openaiResponse.status === 401) return res.status(503).json({ fallback: true });
+            if (openaiResponse.status === 429) return res.status(503).json({ fallback: true });
+            return res.status(500).json({ fallback: true });
+        }
+
+        const data = await openaiResponse.json();
+        const raw = (data.choices?.[0]?.message?.content || '').trim();
+        const cleaned = raw.replace(/^```json?\s*|\s*```$/g, '').trim();
+        let parsed;
+        try {
+            parsed = JSON.parse(cleaned);
+        } catch (_) {
+            return res.status(500).json({ fallback: true });
+        }
+        const soilText = typeof parsed.soil === 'string' ? parsed.soil.trim() : null;
+        const tempText = typeof parsed.temperature === 'string' ? parsed.temperature.trim() : null;
+        const humidityText = typeof parsed.humidity === 'string' ? parsed.humidity.trim() : null;
+        if (!soilText || !tempText || !humidityText) {
+            return res.status(500).json({ fallback: true });
+        }
+
+        res.json({ soil: soilText, temperature: tempText, humidity: humidityText });
+    } catch (error) {
+        console.error('Card meanings error:', error);
+        res.status(500).json({ fallback: true });
+    }
+});
+
 module.exports = router;
 

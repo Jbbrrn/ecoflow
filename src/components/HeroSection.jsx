@@ -8,12 +8,19 @@ const HeroSection = () => {
       role="region"
       aria-label="Hero section"
     >
-      {/* Background overlay with gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-eco-green-dark via-eco-green-medium to-eco-green-dark z-0"></div>
+      {/* Background image */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/css/hero.png)' }}
+        aria-hidden="true"
+      />
+
+      {/* Background overlay with gradient (green tint, lets image show through) */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-eco-green-dark/55 via-eco-green-medium/50 to-eco-green-dark/55"></div>
 
       {/* Animated background effects */}
       <motion.div
-        className="absolute inset-0 opacity-60"
+        className="absolute inset-0 z-[2] opacity-35"
         animate={{
           background: [
             'radial-gradient(circle at 30% 40%, rgba(90, 157, 102, 0.3) 0%, transparent 40%)',
@@ -45,6 +52,16 @@ const HeroSection = () => {
           A greenhouse monitoring web app developed by IT students of the University of Batangas,
           seamlessly integrated with automated irrigation hardware engineered by CPE students.
         </motion.p>
+
+        <motion.a
+          href="#about"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4, ease: 'easeOut' }}
+          className="inline-block mt-8 px-8 py-4 rounded-xl font-semibold text-white bg-white/20 backdrop-blur-sm border-2 border-white/40 hover:bg-white/30 hover:border-white/60 transition-all duration-300 shadow-lg"
+        >
+          Learn more
+        </motion.a>
       </div>
     </section>
   );

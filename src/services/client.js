@@ -90,6 +90,40 @@ export const apiClient = {
     }
   },
 
+  async getPlantSummary({ sensorData, condition, attentionItems }) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/summary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sensorData, condition, attentionItems }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { summary: null, fallback: true, error: data.error || 'Summary failed.' };
+    }
+    return data;
+  },
+
+  async getCardMeanings({ soil, temperature, humidity }) {
+    const token = localStorage.getItem('userToken');
+    const response = await fetch(`${API_BASE_URL}/summary/card-meanings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ soil, temperature, humidity }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.fallback) {
+      return { fallback: true };
+    }
+    return data;
+  },
+
   // Generic GET method for API calls
   async get(endpoint) {
     const token = localStorage.getItem('userToken');

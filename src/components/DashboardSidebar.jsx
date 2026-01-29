@@ -64,7 +64,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
+const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -83,6 +83,31 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // When parent opens mobile menu, show sidebar
+  useEffect(() => {
+    if (isMobile && mobileOpen) {
+      setIsCollapsed(false);
+    }
+  }, [isMobile, mobileOpen]);
+
+  const effectiveCollapsed = isMobile ? !mobileOpen : isCollapsed;
+
+  const handleToggle = () => {
+    if (isMobile) {
+      setIsCollapsed(true);
+      onMobileClose?.();
+    } else {
+      setIsCollapsed(!isCollapsed);
+    }
+  };
+
+  const handleOverlayClick = () => {
+    if (isMobile) {
+      setIsCollapsed(true);
+      onMobileClose?.();
+    }
+  };
+
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) {
@@ -98,14 +123,12 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
   const navItems = userRole === 'admin' 
     ? [
         { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
-        { id: 'analytics', icon: AnalyticsIcon, label: 'Analytics' },
         { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
         { id: 'reports', icon: ReportsIcon, label: 'Generate Reports' },
         { id: 'manage-accounts', icon: ManageAccountsIcon, label: 'Manage Accounts' },
       ]
     : [
         { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
-        { id: 'analytics', icon: AnalyticsIcon, label: 'Analytics' },
         { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
       ];
 
@@ -122,20 +145,22 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
     }
     if (isMobile) {
       setIsCollapsed(true);
+      onMobileClose?.();
     }
   };
 
   return (
     <>
       {/* Mobile Overlay */}
-      {isMobile && !isCollapsed && (
+      {isMobile && !effectiveCollapsed && (
         <div 
           className="sidebar-overlay"
-          onClick={() => setIsCollapsed(true)}
+          onClick={handleOverlayClick}
+          aria-hidden="true"
         />
       )}
       
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''}`}>
+      <aside className={`sidebar ${effectiveCollapsed ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''}`}>
         {/* Header */}
         <div className="sidebar-header">
           <div className="sidebar-logo-container">
@@ -147,26 +172,30 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
                 e.target.style.display = 'none';
               }}
             />
-            {!isCollapsed && (
+            {!effectiveCollapsed && (
               <span className="sidebar-brand">Eco Flow</span>
             )}
           </div>
           <button
             className="sidebar-toggle"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label="Toggle sidebar"
+            onClick={handleToggle}
+            aria-label={effectiveCollapsed ? 'Open menu' : 'Close menu'}
           >
-            <span className={`toggle-icon ${isCollapsed ? 'collapsed' : ''}`}>
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
+            {effectiveCollapsed ? (
+              <svg className="toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            ) : (
+              <svg className="toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            )}
           </button>
         </div>
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          {!isCollapsed && (
+          {!effectiveCollapsed && (
             <div className="nav-section-heading">NAVIGATION</div>
           )}
           <ul className="nav-list">
@@ -184,7 +213,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
                         <IconComponent />
                       </span>
                     </span>
-                    {!isCollapsed && <span className="nav-label">{item.label}</span>}
+                    {!effectiveCollapsed && <span className="nav-label">{item.label}</span>}
                     {activeSection === item.id && (
                       <span className="nav-indicator"></span>
                     )}
@@ -203,7 +232,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
                 {username ? username.charAt(0).toUpperCase() : (userRole === 'admin' ? 'A' : 'U')}
               </div>
             </div>
-            {!isCollapsed && (
+            {!effectiveCollapsed && (
               <div className="user-details">
                 <div className="user-name">
                   {username || (userRole === 'admin' ? 'Admin User' : 'User')}
@@ -217,7 +246,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole }) => {
           <button
             className="logout-btn"
             onClick={handleLogout}
-            title={isCollapsed ? 'Logout' : ''}
+            title={effectiveCollapsed ? 'Logout' : ''}
           >
             <span className="logout-icon">
               <LogoutIcon />

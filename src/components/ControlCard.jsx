@@ -173,7 +173,7 @@ const ControlCard = ({
 
       {/* Status Info */}
       <div className="relative z-10 mt-4 pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-start gap-2 text-sm">
           <span className="text-gray-500">Current State:</span>
           <motion.span
             className={`font-semibold ${

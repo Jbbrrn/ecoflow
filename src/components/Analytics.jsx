@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { apiClient } from '../services/client.js';
@@ -7,6 +7,9 @@ const Analytics = () => {
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(24); // hours
+  const [cardMeanings, setCardMeanings] = useState({ soil: null, temperature: null, humidity: null });
+  const cardMeaningsDebounceRef = useRef(null);
+  const lastCardMeaningsSnapshotRef = useRef(null);
 
   useEffect(() => {
     fetchHistoryData();
@@ -229,6 +232,71 @@ const Analytics = () => {
 
   const stats = getSummaryStats();
 
+  // Optional AI-generated card meanings only when stats data has changed (saves API credits)
+  useEffect(() => {
+    const currentStats = getSummaryStats();
+    if (!currentStats) return;
+    const s1 = currentStats.soil?.sensor1?.current ?? 0;
+    const s2 = currentStats.soil?.sensor2?.current ?? 0;
+    const s3 = currentStats.soil?.sensor3?.current ?? 0;
+    const temp = currentStats.temperature?.current ?? 0;
+    const hum = currentStats.humidity?.current ?? 0;
+    const snapshot = `${s1.toFixed(0)},${s2.toFixed(0)},${s3.toFixed(0)},${Number(temp).toFixed(1)},${Number(hum).toFixed(1)}`;
+
+    if (cardMeaningsDebounceRef.current) clearTimeout(cardMeaningsDebounceRef.current);
+    cardMeaningsDebounceRef.current = setTimeout(() => {
+      cardMeaningsDebounceRef.current = null;
+      if (lastCardMeaningsSnapshotRef.current === snapshot) return;
+      lastCardMeaningsSnapshotRef.current = snapshot;
+      apiClient.getCardMeanings({
+        soil: currentStats.soil,
+        temperature: currentStats.temperature,
+        humidity: currentStats.humidity,
+      }).then((data) => {
+        if (!data.fallback && data.soil && data.temperature && data.humidity) {
+          setCardMeanings({ soil: data.soil, temperature: data.temperature, humidity: data.humidity });
+        }
+      }).catch(() => {});
+    }, 1200);
+    return () => {
+      if (cardMeaningsDebounceRef.current) clearTimeout(cardMeaningsDebounceRef.current);
+    };
+  }, [historyData, timeRange]);
+
+  // Data-driven "What this means" copy (used when AI is unavailable or as fallback)
+  const getSoilMeaning = (soil) => {
+    if (!soil) return 'Soil moisture shows how much water is in your soil. Values above 50% mean your plants have enough water. Below 50% means they need watering.';
+    const s1 = soil.sensor1?.current ?? 0;
+    const s2 = soil.sensor2?.current ?? 0;
+    const s3 = soil.sensor3?.current ?? 0;
+    const allGood = s1 >= 50 && s2 >= 50 && s3 >= 50;
+    const anyDry = s1 < 50 || s2 < 50 || s3 < 50;
+    const anyWet = s1 > 80 || s2 > 80 || s3 > 80;
+    if (anyDry && anyWet) return 'Some areas are dry and others are quite wet. Water the dry spots and skip the wet ones.';
+    if (anyDry) return 'Some areas are dry. Consider watering those spots so your plants have enough water.';
+    if (anyWet) return 'Some areas are quite wet. You can skip watering there for a while.';
+    if (allGood) return 'Your plants have enough water. No need to water right now.';
+    return 'Soil moisture shows how much water is in your soil. Values above 50% mean your plants have enough water. Below 50% means they need watering.';
+  };
+  const getTempMeaning = (current) => {
+    if (current == null || current === undefined) return 'Temperature affects plant growth. Most plants grow best between 20-25°C. Too hot or too cold can stress your plants.';
+    const t = Number(current);
+    if (t >= 20 && t <= 25) return 'Temperature is ideal for your plants. No change needed.';
+    if (t >= 15 && t <= 30) return 'Temperature is acceptable for most plants. Monitor if they look stressed.';
+    if (t > 30) return 'It\'s on the warm side. Good airflow or light shade can help your plants.';
+    if (t < 15) return 'It\'s cool. Most plants prefer a bit more warmth; consider heating or moving them.';
+    return 'Temperature affects plant growth. Most plants grow best between 20-25°C.';
+  };
+  const getHumidityMeaning = (current) => {
+    if (current == null || current === undefined) return 'Humidity is the amount of water vapor in the air. Most plants prefer 50-70% humidity. Too low can dry out plants, too high can cause mold.';
+    const h = Number(current);
+    if (h >= 50 && h <= 70) return 'Humidity is comfortable for your plants. No action needed.';
+    if (h >= 40 && h <= 75) return 'Humidity is a bit off ideal. Monitor your plants for stress.';
+    if (h > 75) return 'The air is very humid. Ventilation can help reduce mold risk.';
+    if (h < 40) return 'The air is dry. Plants may need more water or a humidifier.';
+    return 'Humidity is the amount of water vapor in the air. Most plants prefer 50-70%.';
+  };
+
   // Format timestamp for display
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
@@ -333,8 +401,7 @@ const Analytics = () => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-xs text-gray-500 leading-relaxed">
-                <strong>What this means:</strong> Soil moisture shows how much water is in your soil. 
-                Values above 50% mean your plants have enough water. Below 50% means they need watering.
+                <strong>What this means:</strong> {cardMeanings.soil ?? getSoilMeaning(stats?.soil)}
               </p>
             </div>
           </motion.div>
@@ -393,8 +460,7 @@ const Analytics = () => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-xs text-gray-500 leading-relaxed">
-                <strong>What this means:</strong> Temperature affects plant growth. 
-                Most plants grow best between 20-25°C. Too hot or too cold can stress your plants.
+                <strong>What this means:</strong> {cardMeanings.temperature ?? getTempMeaning(stats?.temperature?.current)}
               </p>
             </div>
           </motion.div>
@@ -453,8 +519,7 @@ const Analytics = () => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-xs text-gray-500 leading-relaxed">
-                <strong>What this means:</strong> Humidity is the amount of water vapor in the air. 
-                Most plants prefer 50-70% humidity. Too low can dry out plants, too high can cause mold.
+                <strong>What this means:</strong> {cardMeanings.humidity ?? getHumidityMeaning(stats?.humidity?.current)}
               </p>
             </div>
           </motion.div>
@@ -471,7 +536,7 @@ const Analytics = () => {
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-700 mb-2">Soil Moisture Trends</h3>
           <p className="text-sm text-gray-500">
-            Track how soil moisture changes over time. The green line shows the optimal level (50%).
+            Track how soil moisture changes over time. The dashed green line shows the optimal level (50%).
             All three sensors should stay above this line for healthy plants.
           </p>
         </div>

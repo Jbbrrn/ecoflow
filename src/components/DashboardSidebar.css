@@ -129,34 +129,11 @@
   background: var(--sidebar-hover);
 }
 
-.toggle-icon {
+.toggle-arrow {
   width: 24px;
-  height: 18px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.toggle-icon span {
-  display: block;
-  height: 2px;
-  width: 100%;
-  background: var(--sidebar-text);
-  border-radius: 2px;
-  transition: all var(--transition-speed) ease;
-}
-
-.toggle-icon.collapsed span:nth-child(1) {
-  transform: rotate(45deg) translate(8px, 8px);
-}
-
-.toggle-icon.collapsed span:nth-child(2) {
-  opacity: 0;
-}
-
-.toggle-icon.collapsed span:nth-child(3) {
-  transform: rotate(-45deg) translate(8px, -8px);
+  height: 24px;
+  color: var(--sidebar-text);
+  flex-shrink: 0;
 }
 
 /* Navigation */
