@@ -77,7 +77,7 @@ const LoginModal = ({ isOpen, onClose }) => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="bg-white rounded-3xl shadow-2xl max-w-[620px] w-full max-h-[90vh] overflow-y-auto relative"
+              className="bg-surface rounded-3xl shadow-2xl max-w-[620px] w-full max-h-[90vh] overflow-y-auto relative"
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"

@@ -236,7 +236,7 @@ const UserDashboard = () => {
       />
 
       <main className="flex-1 dashboard-main-content overflow-y-auto">
-        <header className="bg-white shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
+        <header className="bg-surface shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
           <button
             type="button"
             className="md:hidden flex-shrink-0 p-2 rounded-lg text-eco-green-dark hover:bg-eco-green-bg focus:outline-none focus:ring-2 focus:ring-eco-green-light min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -309,7 +309,7 @@ const UserDashboard = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden relative h-full flex flex-col"
+                  className="bg-surface rounded-xl shadow-lg overflow-hidden relative h-full flex flex-col"
                 >
                   {/* Green accent strip at top */}
                   <motion.div
@@ -499,7 +499,7 @@ const UserDashboard = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
+                className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
               >
                 <h2 className="text-2xl font-bold text-eco-green-dark mb-3">Manual Controls</h2>
                 <div className="space-y-3">

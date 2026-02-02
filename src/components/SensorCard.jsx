@@ -7,7 +7,7 @@ const SensorCard = ({ title, value, status, unit, progress, scaleMax = 100, tren
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
+      className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
     >
       <div className="mb-4">
         <div className="text-sm font-semibold text-gray-600 mb-2">{title}</div>

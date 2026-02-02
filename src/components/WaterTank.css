@@ -18,13 +18,9 @@
   width: 100%;
   max-width: 1200px;
   border-radius: 30px;
-  background: #e0e0e0;
-  background-image: url('/soil.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-shadow: 15px 15px 30px #bebebe,
-             -15px -15px 30px #ffffff;
+  background: #FAFAFA;
+  box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.06),
+             -15px -15px 30px rgba(255, 255, 255, 0.8);
   display: flex;
   flex-direction: column;
   padding: 2em;
@@ -32,18 +28,6 @@
   margin: 0 auto;
   position: relative;
   overflow: hidden;
-}
-
-.sensors-card-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(139, 90, 43, 0.15); /* Brown overlay for better contrast */
-  z-index: 0;
-  pointer-events: none;
 }
 
 .sensors-card-container > * {
@@ -55,11 +39,10 @@
   text-align: center;
   font-size: 1.5em;
   font-weight: bold;
-  color: #ffffff;
+  color: #1f2937;
   margin-bottom: 1.5em;
   letter-spacing: 0.05em;
   animation: fadeInDown 0.8s ease-out, subtlePulse 3s ease-in-out 0.8s infinite;
-  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
   position: relative;
 }
 

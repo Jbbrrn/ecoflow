@@ -17,7 +17,7 @@ const AboutSection = () => {
     <section
       id="about"
       ref={ref}
-      className="bg-white py-20 md:py-32"
+      className="bg-surface py-20 md:py-32"
       role="region"
       aria-label="About section"
     >

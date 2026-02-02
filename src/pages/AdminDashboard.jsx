@@ -495,8 +495,9 @@ const AdminDashboard = () => {
         const headers = ['User ID', 'Username', 'Email', 'Role', 'Status', 'Total Commands', 'Successful', 'Failed', 'Pending', 'First Command', 'Last Command'];
         csvContent += headers.map(h => escapeCSV(h)).join(',') + '\n';
         
-        if (Array.isArray(reportData) && reportData.length > 0) {
-          reportData.forEach(activity => {
+        const activityArray = Array.isArray(reportData) ? reportData : (reportData?.users || []);
+        if (activityArray.length > 0) {
+          activityArray.forEach(activity => {
             const row = [
               activity.user_id || 'N/A',
               activity.username || 'N/A',
@@ -838,8 +839,9 @@ const AdminDashboard = () => {
         }
 
       } else if (reportType === 'user-activity') {
-        if (Array.isArray(reportData) && reportData.length > 0) {
-          const activityData = reportData.map(activity => [
+        const activityArray = Array.isArray(reportData) ? reportData : (reportData?.users || []);
+        if (activityArray.length > 0) {
+          const activityData = activityArray.map(activity => [
             activity.username || 'N/A',
             activity.email || 'N/A',
             activity.user_role || 'N/A',
@@ -861,22 +863,61 @@ const AdminDashboard = () => {
         }
 
       } else if (reportType === 'water-usage') {
-        // Water Usage Report PDF
-        // Match the render function's data access pattern
+        // Water Usage Report PDF - supports new format (summary, daily_breakdown) and legacy (usage)
+        const summary = reportData?.summary;
+        const dailyBreakdown = reportData?.daily_breakdown || [];
         const usage = reportData?.usage || reportData?.data?.usage;
+        const hasNewData = summary && (summary.total_sessions > 0 || summary.total_water_liters > 0);
+        const hasLegacyData = usage && (usage.pump || usage.valve);
         
-        if (usage && (usage.pump || usage.valve)) {
+        if (hasNewData) {
+          const pumpMinutes = Math.round((parseFloat(summary.total_pump_seconds) || 0) / 60);
+          const valveMinutes = Math.round((parseFloat(summary.total_valve_seconds) || 0) / 60);
+          const summaryData = [
+            ['Total Sessions', summary.total_sessions || 0],
+            ['Total Water', `${parseFloat(summary.total_water_liters || 0).toFixed(2)} liters`],
+            ['Pump Runtime', `${pumpMinutes} minutes`],
+            ['Valve Runtime', `${valveMinutes} minutes`],
+            ['Irrigation Energy', `${parseFloat(summary.total_irrigation_energy_kwh || 0).toFixed(4)} kWh`],
+            ['Device Energy', `${parseFloat(summary.total_device_energy_kwh || 0).toFixed(4)} kWh`],
+            ['Total Energy', `${parseFloat(summary.total_energy_kwh || 0).toFixed(4)} kWh`]
+          ];
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Water Usage Summary', 'Value']],
+            body: summaryData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] }
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+          if (dailyBreakdown.length > 0) {
+            checkPageBreak(30);
+            const dailyData = dailyBreakdown.map(d => [
+              d.date,
+              d.sessions,
+              d.water_liters,
+              Math.round(parseFloat(d.pump_seconds || 0) / 60),
+              Math.round(parseFloat(d.valve_seconds || 0) / 60),
+              parseFloat(d.total_energy_kwh || 0).toFixed(4)
+            ]);
+            autoTable(doc, {
+              startY: yPosition,
+              head: [['Date', 'Sessions', 'Water (L)', 'Pump (min)', 'Valve (min)', 'Energy (kWh)']],
+              body: dailyData,
+              theme: 'striped',
+              headStyles: { fillColor: [61, 134, 11] },
+              styles: { fontSize: 8 }
+            });
+          }
+        } else if (hasLegacyData) {
           const pump = usage.pump || {};
           const valve = usage.valve || {};
-          
-          // Pump Statistics
           const pumpData = [
             ['Total Activations', pump.total_activations || 0],
             ['Successful Activations', pump.successful_activations || 0],
             ['Total ON Time', `${pump.total_on_time_minutes || 0} minutes`],
             ['Total ON Time (Hours)', `${formatNum((pump.total_on_time_minutes || 0) / 60)} hours`]
           ];
-          
           autoTable(doc, {
             startY: yPosition,
             head: [['Pump Statistics', 'Value']],
@@ -885,8 +926,6 @@ const AdminDashboard = () => {
             headStyles: { fillColor: [61, 134, 11] }
           });
           yPosition = doc.lastAutoTable.finalY + 10;
-
-          // Valve Statistics
           checkPageBreak(20);
           const valveData = [
             ['Total Activations', valve.total_activations || 0],
@@ -894,7 +933,6 @@ const AdminDashboard = () => {
             ['Total ON Time', `${valve.total_on_time_minutes || 0} minutes`],
             ['Total ON Time (Hours)', `${formatNum((valve.total_on_time_minutes || 0) / 60)} hours`]
           ];
-          
           autoTable(doc, {
             startY: yPosition,
             head: [['Valve Statistics', 'Value']],
@@ -903,8 +941,6 @@ const AdminDashboard = () => {
             headStyles: { fillColor: [61, 134, 11] }
           });
           yPosition = doc.lastAutoTable.finalY + 10;
-
-          // Summary
           checkPageBreak(15);
           const totalMinutes = (pump.total_on_time_minutes || 0) + (valve.total_on_time_minutes || 0);
           const summaryData = [
@@ -912,7 +948,6 @@ const AdminDashboard = () => {
             ['Combined ON Time', `${totalMinutes} minutes`],
             ['Combined ON Time (Hours)', `${formatNum(totalMinutes / 60)} hours`]
           ];
-          
           autoTable(doc, {
             startY: yPosition,
             head: [['Summary', 'Value']],
@@ -921,7 +956,6 @@ const AdminDashboard = () => {
             headStyles: { fillColor: [61, 134, 11] }
           });
         } else {
-          // No data message
           yPosition += 10;
           doc.setFontSize(10);
           doc.setTextColor(100, 100, 100);
@@ -989,7 +1023,7 @@ const AdminDashboard = () => {
   const renderDeviceCommandsReport = () => {
     if (!reportData) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Device Commands Report</h3>
           <p className="text-gray-600">No report data available. Please generate a report first.</p>
         </div>
@@ -998,7 +1032,7 @@ const AdminDashboard = () => {
     
     if (!reportData.summary) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Device Commands Report</h3>
           <p className="text-gray-600">No device commands found for the selected date range.</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -1033,7 +1067,7 @@ const AdminDashboard = () => {
         {/* Breakdown Sections */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* By Device */}
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <div className="bg-surface rounded-lg p-6 border border-gray-200">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">By Device</h4>
             <div className="space-y-2">
               {summary.by_device && Object.entries(summary.by_device).map(([device, count]) => (
@@ -1046,7 +1080,7 @@ const AdminDashboard = () => {
           </div>
 
           {/* By Status */}
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <div className="bg-surface rounded-lg p-6 border border-gray-200">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">By Status</h4>
             <div className="space-y-2">
               {summary.by_status && Object.entries(summary.by_status).map(([status, count]) => (
@@ -1059,7 +1093,7 @@ const AdminDashboard = () => {
           </div>
 
           {/* By User */}
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <div className="bg-surface rounded-lg p-6 border border-gray-200">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">By User</h4>
             <div className="space-y-2">
               {summary.by_user && Object.entries(summary.by_user).map(([user, info]) => (
@@ -1074,7 +1108,7 @@ const AdminDashboard = () => {
 
         {/* Commands Table */}
         {commands && commands.length > 0 && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <div className="bg-surface rounded-lg p-6 border border-gray-200">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Recent Commands</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1160,19 +1194,19 @@ const AdminDashboard = () => {
     }
 
     return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
+      <div className="bg-surface rounded-lg p-6 border border-gray-200">
         <p className="text-gray-600">Report data will be displayed here.</p>
       </div>
     );
   };
 
   const renderUserActivityReport = () => {
-    // Handle case where reportData might be wrapped or null
-    const activityData = Array.isArray(reportData) ? reportData : (reportData?.data || []);
+    // Handle case where reportData might be wrapped or null (API returns array directly, or { users })
+    const activityData = Array.isArray(reportData) ? reportData : (reportData?.users || reportData?.data || []);
     
     if (!activityData || activityData.length === 0) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">User Activity Report</h3>
           <p className="text-gray-600">No user activity data available for the selected date range.</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -1187,7 +1221,7 @@ const AdminDashboard = () => {
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">User Activity Report</h3>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-surface rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
@@ -1260,7 +1294,7 @@ const AdminDashboard = () => {
     // Check if summary exists and has data
     if (!summary) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
           <p className="text-gray-600">No sensor summary data available. Summary object is missing.</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -1273,7 +1307,7 @@ const AdminDashboard = () => {
     // Check if there are any readings (allow 0 as valid if it's actually 0)
     if (summary.total_readings === null || summary.total_readings === undefined) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
           <p className="text-gray-600">No sensor summary data available for the selected date range.</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -1288,7 +1322,7 @@ const AdminDashboard = () => {
     // If total_readings is 0, still show the report but indicate no data
     if (summary.total_readings === 0) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Sensor Data Summary Report</h3>
           <p className="text-gray-600">No sensor readings found for the selected date range.</p>
           <p className="text-gray-500 text-sm mt-2">
@@ -1323,7 +1357,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">Soil Moisture Averages</h4>
           <div className="space-y-2">
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -1347,7 +1381,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">Environmental Conditions</h4>
           <div className="space-y-2">
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -1383,23 +1417,94 @@ const AdminDashboard = () => {
 
 
   const renderWaterUsageReport = () => {
-    // Handle case where reportData structure might vary
+    // New API: uses resource_consumption table - returns { summary, daily_breakdown, device_energy }
+    // Legacy: uses device_commands - returns { usage: { pump, valve } }
+    const summary = reportData?.summary;
+    const dailyBreakdown = reportData?.daily_breakdown || [];
     const usage = reportData?.usage || reportData?.data?.usage;
     
-    if (!usage || (!usage.pump && !usage.valve)) {
+    // Check for new format (resource consumption)
+    const hasNewData = summary && (summary.total_sessions > 0 || summary.total_water_liters > 0 || summary.total_pump_seconds > 0 || summary.total_valve_seconds > 0);
+    // Check for legacy format (device commands)
+    const hasLegacyData = usage && (usage.pump || usage.valve);
+    
+    if (!hasNewData && !hasLegacyData) {
       return (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">Water Usage Report</h3>
           <p className="text-gray-600">No water usage data available for the selected date range.</p>
           <p className="text-gray-500 text-sm mt-2">
             {!startDate || !endDate 
-              ? 'Showing data for the last 7 days. Select a date range to see usage for a specific period.' 
-              : 'Water usage is calculated from pump and valve activation records. Ensure devices have been activated during this period.'}
+              ? 'Select a date range to see water usage.' 
+              : 'Water usage is calculated from resource consumption data. Ensure the RPI is sending resource_consumption data during irrigation.'}
           </p>
         </div>
       );
     }
 
+    // Render new format (resource consumption)
+    if (hasNewData) {
+      const pumpMinutes = Math.round((parseFloat(summary.total_pump_seconds) || 0) / 60);
+      const valveMinutes = Math.round((parseFloat(summary.total_valve_seconds) || 0) / 60);
+      return (
+        <div className="space-y-6">
+          <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Sessions</div>
+              <div className="text-3xl font-bold text-eco-green-dark">{summary.total_sessions || 0}</div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Water</div>
+              <div className="text-3xl font-bold text-eco-green-dark">{parseFloat(summary.total_water_liters || 0).toFixed(2)} L</div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Pump Runtime</div>
+              <div className="text-3xl font-bold text-eco-green-dark">{pumpMinutes} min</div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Valve Runtime</div>
+              <div className="text-3xl font-bold text-eco-green-dark">{valveMinutes} min</div>
+            </div>
+          </div>
+          
+          {dailyBreakdown.length > 0 && (
+            <div className="bg-surface rounded-lg p-6 border border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4">Daily Breakdown</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Sessions</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Water (L)</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pump (min)</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Valve (min)</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Energy (kWh)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {dailyBreakdown.map((day, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-700">{day.date}</td>
+                        <td className="px-4 py-3 text-gray-700">{day.sessions}</td>
+                        <td className="px-4 py-3 text-gray-700">{day.water_liters}</td>
+                        <td className="px-4 py-3 text-gray-700">{Math.round(parseFloat(day.pump_seconds || 0) / 60)}</td>
+                        <td className="px-4 py-3 text-gray-700">{Math.round(parseFloat(day.valve_seconds || 0) / 60)}</td>
+                        <td className="px-4 py-3 text-gray-700">{parseFloat(day.total_energy_kwh || 0).toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Legacy format (device commands)
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
@@ -1437,7 +1542,7 @@ const AdminDashboard = () => {
       />
 
       <main className="flex-1 dashboard-main-content overflow-y-auto">
-        <header className="bg-white shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
+        <header className="bg-surface shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
           <button
             type="button"
             className="md:hidden flex-shrink-0 p-2 rounded-lg text-eco-green-dark hover:bg-eco-green-bg focus:outline-none focus:ring-2 focus:ring-eco-green-light min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1514,7 +1619,7 @@ const AdminDashboard = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-                      className="bg-white rounded-xl shadow-lg overflow-hidden relative h-full flex flex-col"
+                      className="bg-surface rounded-xl shadow-lg overflow-hidden relative h-full flex flex-col"
                     >
                       {/* Green accent strip at top */}
                       <motion.div
@@ -1700,7 +1805,7 @@ const AdminDashboard = () => {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
+                    className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
                   >
                     <h2 className="text-2xl font-bold text-eco-green-dark mb-3">Manual Controls</h2>
                     <div className="space-y-3">
@@ -1768,7 +1873,7 @@ const AdminDashboard = () => {
                   transition={{ duration: 0.5 }}
                   className="space-y-6"
                 >
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium">
+                  <div className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium">
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className="text-2xl font-bold text-eco-green-dark mb-2">Manage Accounts</h2>
@@ -1876,7 +1981,7 @@ const AdminDashboard = () => {
                   className="space-y-6"
                 >
                   {/* Reports & Analytics Card */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium">
+                  <div className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium">
                     <h2 className="text-2xl font-bold text-eco-green-dark mb-2">Reports & Analytics</h2>
                     <p className="text-gray-600 mb-6">
                       Generate comprehensive reports on system activity, device commands, and sensor data.
@@ -1954,7 +2059,7 @@ const AdminDashboard = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="bg-white rounded-xl shadow-lg p-6"
+                      className="bg-surface rounded-xl shadow-lg p-6"
                     >
                       {renderReportResults()}
                     </motion.div>

@@ -1,6 +1,6 @@
 /* Thermometer — adapted from original design, driven by actual temperature (0–50°C) */
 
-/* Variables */
+/* Variables — default: same blue as humidity (#3B82F6) */
 .thermometer {
   --tm-width: 22px;
   --tm-height: 180px;
@@ -9,11 +9,25 @@
   --tm-radius: 14px;
   --tm-bg: #3a3a40;
   --tm-border-color: #2a2a2e;
-  --tm-bulb-color: #3dcadf;
-  --tm-mercury-warm: #f17a65;
-  --tm-mercury-cool: #3dcadf;
+  --tm-bulb-color: #3B82F6;
+  --tm-mercury-warm: #3B82F6;
+  --tm-mercury-cool: #3B82F6;
   --tm-tooltip-bg: rgba(0, 0, 0, 0.75);
   --tm-gradation: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Normal: same blue as humidity */
+.thermometer--normal {
+  --tm-bulb-color: #3B82F6;
+  --tm-mercury-warm: #3B82F6;
+  --tm-mercury-cool: #3B82F6;
+}
+
+/* Hot (≥30°C): red */
+.thermometer--hot {
+  --tm-bulb-color: #EF4444;
+  --tm-mercury-warm: #EF4444;
+  --tm-mercury-cool: #EF4444;
 }
 
 .thermometer-wrapper {

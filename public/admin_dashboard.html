@@ -1634,8 +1634,8 @@
         }
 
         function displayUserActivityReport(data) {
-            // Handle case where data might be wrapped or null
-            const activityData = Array.isArray(data) ? data : (data?.data || []);
+            // Handle case where data might be wrapped or null (API returns array directly, or { users })
+            const activityData = Array.isArray(data) ? data : (data?.users || data?.data || []);
             
             if (!activityData || activityData.length === 0) {
                 return `
@@ -1791,10 +1791,14 @@
         }
 
         function displayWaterUsageReport(data) {
-            // Handle case where data structure might vary
+            // New API: { summary, daily_breakdown, device_energy } | Legacy: { usage: { pump, valve } }
+            const summary = data?.summary;
+            const dailyBreakdown = data?.daily_breakdown || [];
             const usage = data?.usage || data?.data?.usage;
+            const hasNewData = summary && (summary.total_sessions > 0 || summary.total_water_liters > 0 || summary.total_pump_seconds > 0 || summary.total_valve_seconds > 0);
+            const hasLegacyData = usage && (usage.pump || usage.valve);
             
-            if (!usage) {
+            if (!hasNewData && !hasLegacyData) {
                 return `
                     <div class="report-container">
                         <h3 class="report-title">Water Usage Report</h3>
@@ -1803,47 +1807,88 @@
                 `;
             }
             
+            if (hasNewData) {
+                const pumpMinutes = Math.round((parseFloat(summary.total_pump_seconds) || 0) / 60);
+                const valveMinutes = Math.round((parseFloat(summary.total_valve_seconds) || 0) / 60);
+                let html = `
+                    <div class="report-container">
+                        <h3 class="report-title">Water Usage Report</h3>
+                        <div class="report-summary-grid">
+                            <div class="summary-card">
+                                <div class="summary-label">Total Sessions</div>
+                                <div class="summary-value">${summary.total_sessions || 0}</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-label">Total Water</div>
+                                <div class="summary-value">${parseFloat(summary.total_water_liters || 0).toFixed(2)} L</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-label">Pump Runtime</div>
+                                <div class="summary-value">${pumpMinutes} min</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-label">Valve Runtime</div>
+                                <div class="summary-value">${valveMinutes} min</div>
+                            </div>
+                        </div>`;
+                if (dailyBreakdown.length > 0) {
+                    html += `
+                        <div class="report-breakdown">
+                            <h4>Daily Breakdown</h4>
+                            <div class="breakdown-list">
+                                ${dailyBreakdown.map(d => `
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">${d.date}:</span>
+                                        <span class="breakdown-value">${d.sessions} sessions, ${d.water_liters} L water, Pump ${Math.round(parseFloat(d.pump_seconds || 0) / 60)} min, Valve ${Math.round(parseFloat(d.valve_seconds || 0) / 60)} min</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                }
+                html += '</div>';
+                return html;
+            }
+            
+            // Legacy format
             let html = `
                 <div class="report-container">
                     <h3 class="report-title">Water Usage Report</h3>
-                    
                     <div class="report-summary-grid">
                         <div class="summary-card">
                             <div class="summary-label">Pump Activations</div>
-                            <div class="summary-value">${usage.pump.total_activations || 0}</div>
+                            <div class="summary-value">${usage.pump?.total_activations || 0}</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-label">Pump Total ON Time</div>
-                            <div class="summary-value">${usage.pump.total_on_time_minutes || 0} min</div>
+                            <div class="summary-value">${usage.pump?.total_on_time_minutes || 0} min</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-label">Valve Activations</div>
-                            <div class="summary-value">${usage.valve.total_activations || 0}</div>
+                            <div class="summary-value">${usage.valve?.total_activations || 0}</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-label">Valve Total ON Time</div>
-                            <div class="summary-value">${usage.valve.total_on_time_minutes || 0} min</div>
+                            <div class="summary-value">${usage.valve?.total_on_time_minutes || 0} min</div>
                         </div>
                     </div>
-                    
                     <div class="report-breakdown">
                         <h4>Daily Usage Breakdown</h4>
                         <div class="breakdown-list">
-                            ${Object.entries(usage.pump.by_date).map(([date, stats]) => `
+                            ${(usage.pump?.by_date ? Object.entries(usage.pump.by_date) : []).map(([date, stats]) => `
                                 <div class="breakdown-item">
                                     <span class="breakdown-label">${date} - Pump:</span>
-                                    <span class="breakdown-value">${stats.activations} activations, ${stats.on_time_minutes} min ON time</span>
+                                    <span class="breakdown-value">${stats.activations || 0} activations, ${stats.on_time_minutes || 0} min ON time</span>
                                 </div>
                             `).join('')}
-                            ${Object.entries(usage.valve.by_date).map(([date, stats]) => `
+                            ${(usage.valve?.by_date ? Object.entries(usage.valve.by_date) : []).map(([date, stats]) => `
                                 <div class="breakdown-item">
                                     <span class="breakdown-label">${date} - Valve:</span>
-                                    <span class="breakdown-value">${stats.activations} activations, ${stats.on_time_minutes} min ON time</span>
+                                    <span class="breakdown-value">${stats.activations || 0} activations, ${stats.on_time_minutes || 0} min ON time</span>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
-                    
+                    ${(data?.commands && data.commands.length > 0) ? `
                     <div class="report-table-container">
                         <h4>Recent Commands</h4>
                         <table class="report-table">
@@ -1858,19 +1903,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${commands.slice(0, 50).map(cmd => `
+                                ${data.commands.slice(0, 50).map(cmd => `
                                     <tr>
-                                        <td>${cmd.date}</td>
-                                        <td>${cmd.device}</td>
-                                        <td>${cmd.desired_state}</td>
-                                        <td><span class="status-badge status-${cmd.status.toLowerCase()}">${cmd.status}</span></td>
-                                        <td>${new Date(cmd.requested_at).toLocaleString()}</td>
+                                        <td>${cmd.date || ''}</td>
+                                        <td>${cmd.device || ''}</td>
+                                        <td>${cmd.desired_state || ''}</td>
+                                        <td><span class="status-badge status-${(cmd.status || '').toLowerCase()}">${cmd.status || ''}</span></td>
+                                        <td>${cmd.requested_at ? new Date(cmd.requested_at).toLocaleString() : 'N/A'}</td>
                                         <td>${cmd.executed_at ? new Date(cmd.executed_at).toLocaleString() : 'N/A'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
                     </div>
+                    ` : ''}
                 </div>
             `;
             

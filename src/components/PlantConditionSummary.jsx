@@ -221,7 +221,7 @@ const PlantConditionSummary = ({ sensorData }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="bg-white rounded-xl shadow-lg p-6 border-l-4"
+      className="bg-surface rounded-xl shadow-lg p-6 border-l-4"
       style={{ borderLeftColor: plantCondition.conditionColor }}
     >
       <div className="flex items-center justify-between mb-6">

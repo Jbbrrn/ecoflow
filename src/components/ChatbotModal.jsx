@@ -195,7 +195,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 w-[calc(100%-2rem)] sm:w-full max-w-md h-[500px] sm:h-[600px] bg-white rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200"
+            className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 w-[calc(100%-2rem)] sm:w-full max-w-md h-[500px] sm:h-[600px] bg-surface rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-eco-green-medium to-eco-green-dark px-6 py-4 flex items-center justify-between">
@@ -230,7 +230,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
                     className={`max-w-[80%] rounded-lg px-4 py-2 ${
                       message.type === 'user'
                         ? 'bg-eco-green-medium text-white'
-                        : 'bg-white text-gray-800 shadow-sm'
+                        : 'bg-surface text-gray-800 shadow-sm'
                     }`}
                   >
                     {message.type === 'bot' ? (
@@ -263,7 +263,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
                   <div className="w-8 h-8 rounded-full bg-eco-green-medium flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-semibold">EB</span>
                   </div>
-                  <div className="bg-white rounded-lg px-4 py-2 shadow-sm">
+                  <div className="bg-surface rounded-lg px-4 py-2 shadow-sm">
                     <div className="flex gap-1">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -278,7 +278,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
 
             {/* Example Questions */}
             {messages.length === 1 && (
-              <div className="px-4 py-2 bg-white border-t border-gray-200">
+              <div className="px-4 py-2 bg-surface border-t border-gray-200">
                 <div className="flex flex-wrap gap-2">
                   {exampleQuestions.map((question, index) => (
                     <button
@@ -294,7 +294,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
             )}
 
             {/* Input */}
-            <div className="p-4 bg-white border-t border-gray-200">
+            <div className="p-4 bg-surface border-t border-gray-200">
               <div className="flex gap-2">
                 <input
                   ref={inputRef}

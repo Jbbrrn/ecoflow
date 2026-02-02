@@ -17,6 +17,7 @@ module.exports = {
           bg: '#E8F5E9',
           'off-white': '#F1F8E9',
         },
+        surface: '#FAFAFA',
       },
       fontFamily: {
         primary: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],

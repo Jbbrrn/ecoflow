@@ -48,7 +48,7 @@ const Header = ({ onLoginClick }) => {
       transition={{ duration: 0.5 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? 'py-4 shadow-lg' : 'py-6'
-      } bg-white/95 backdrop-blur-xl border-b border-black/5`}
+      } bg-surface/95 backdrop-blur-xl border-b border-black/5`}
       role="banner"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 flex justify-between items-center gap-4">
@@ -110,7 +110,7 @@ const Header = ({ onLoginClick }) => {
               aria-hidden="true"
             />
             <motion.nav
-              className="fixed left-0 right-0 z-50 md:hidden bg-white border-b border-black/10 shadow-xl"
+              className="fixed left-0 right-0 z-50 md:hidden bg-surface border-b border-black/10 shadow-xl"
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}

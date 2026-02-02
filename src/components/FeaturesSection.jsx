@@ -38,7 +38,7 @@ const FeatureCard = ({ feature, index }) => {
       initial={{ opacity: 0, y: 50 }}
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
       transition={{ duration: 0.8, delay: index * 0.15 }}
-      className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer min-h-[400px] relative"
+      className="bg-surface rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer min-h-[400px] relative"
       onClick={() => setIsActive(!isActive)}
       whileHover={{ y: -15, scale: 1.02 }}
     >
@@ -57,7 +57,7 @@ const FeatureCard = ({ feature, index }) => {
           transition={{ duration: 0.3 }}
         >
           <motion.div
-            className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-4xl font-light text-eco-green-dark shadow-lg"
+            className="w-16 h-16 bg-surface rounded-full flex items-center justify-center text-4xl font-light text-eco-green-dark shadow-lg"
             initial={{ scale: 0, rotate: -180 }}
             whileHover={{ scale: 1, rotate: 0 }}
             transition={{ duration: 0.5 }}
@@ -100,7 +100,7 @@ const FeaturesSection = () => {
   return (
     <section
       id="services"
-      className="bg-white py-20 md:py-32"
+      className="bg-surface py-20 md:py-32"
       role="region"
       aria-label="Features section"
     >

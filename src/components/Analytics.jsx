@@ -307,7 +307,7 @@ const Analytics = () => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-surface p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-semibold text-gray-700 mb-2">{formatTimestamp(label)}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -322,7 +322,7 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-surface rounded-xl shadow-lg p-6">
         <div className="text-center text-gray-500">Loading analytics data...</div>
       </div>
     );
@@ -331,7 +331,7 @@ const Analytics = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-surface rounded-xl shadow-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-3xl font-bold text-eco-green-dark mb-2">Analytics Dashboard</h2>
@@ -362,7 +362,7 @@ const Analytics = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-lg p-6 border-l-4"
+            className="bg-surface rounded-xl shadow-lg p-6 border-l-4"
             style={{ borderLeftColor: '#3d860b' }}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -411,7 +411,7 @@ const Analytics = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl shadow-lg p-6 border-l-4"
+            className="bg-surface rounded-xl shadow-lg p-6 border-l-4"
             style={{ borderLeftColor: '#EF4444' }}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -470,7 +470,7 @@ const Analytics = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-lg p-6 border-l-4"
+            className="bg-surface rounded-xl shadow-lg p-6 border-l-4"
             style={{ borderLeftColor: '#3B82F6' }}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -531,7 +531,7 @@ const Analytics = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-xl shadow-lg p-6"
+        className="bg-surface rounded-xl shadow-lg p-6"
       >
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-700 mb-2">Soil Moisture Trends</h3>
@@ -577,7 +577,7 @@ const Analytics = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl shadow-lg p-6"
+        className="bg-surface rounded-xl shadow-lg p-6"
       >
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-700 mb-2">Temperature & Humidity Trends</h3>
