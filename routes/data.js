@@ -7,9 +7,24 @@ const { sendCriticalMoistureAlert } = require('../services/emailService');
 /**
  * POST /api/data/ingest
  * Receive sensor data from RPi device
- * UPDATED: Now handles resource_consumption array and total_resources_last_5min
+ * Supports both formats:
+ *   - Flat: { temperature, soil1, resource_consumption, ... }
+ *   - Nested: { sensor_data: {...}, resource_consumption, total_resources_last_5min }
  */
 router.post('/ingest', authenticateDevice, async (req, res) => {
+    const device_id = req.headers['x-device-id'] || 'RPi_1';
+
+    // Normalize payload: support both flat and nested (sensor_data) formats from RPi
+    let payload = req.body;
+    if (payload.sensor_data && typeof payload.sensor_data === 'object') {
+        payload = {
+            ...payload.sensor_data,
+            resource_consumption: payload.resource_consumption,
+            total_resources_last_5min: payload.total_resources_last_5min,
+            timestamp: payload.sensor_data.timestamp || payload.timestamp
+        };
+    }
+
     const { 
         temperature, 
         humidity,    
@@ -21,11 +36,9 @@ router.post('/ingest', authenticateDevice, async (req, res) => {
         valve,       
         pump,
         timestamp,
-        resource_consumption,      // NEW: Array of resource consumption records
-        total_resources_last_5min  // NEW: Summary of last 5 minutes
-    } = req.body;
-    
-    const device_id = req.headers['x-device-id'] || 'RPi_1';
+        resource_consumption,      // Array of resource consumption records
+        total_resources_last_5min  // Summary of last 5 minutes
+    } = payload;
 
     // Basic Input Validation
     if (typeof temperature === 'undefined' || 
