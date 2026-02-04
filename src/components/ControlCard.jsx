@@ -37,6 +37,12 @@ const ControlCard = ({
     };
   };
 
+  // Action text respects status: show "Pending" when loading/pending, not "running/filling"
+  const getActionText = () => {
+    if (loading || isPending) return 'Pending';
+    return getDescription().action;
+  };
+
   const description = getDescription();
 
   const getStatusColor = () => {
@@ -156,17 +162,17 @@ const ControlCard = ({
           {/* Action hint */}
           <motion.p
             className={`text-xs font-medium ${
-              isOn ? 'text-eco-green-dark' : 'text-gray-500'
+              (loading || isPending) ? 'text-yellow-600' : isOn ? 'text-eco-green-dark' : 'text-gray-500'
             }`}
             animate={{
-              opacity: isOn ? [0.7, 1, 0.7] : 0.7,
+              opacity: (loading || isPending) ? [0.7, 1, 0.7] : isOn ? [0.7, 1, 0.7] : 0.7,
             }}
             transition={{
               duration: 2,
-              repeat: isOn ? Infinity : 0,
+              repeat: (loading || isPending) || isOn ? Infinity : 0,
             }}
           >
-            {description.action}
+            {getActionText()}
           </motion.p>
         </div>
       </div>
