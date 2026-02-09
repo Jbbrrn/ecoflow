@@ -273,7 +273,7 @@ router.get('/sensor-summary', authenticateToken, authorizeAdmin, async (req, res
                 MIN(air_humidity_percent) as min_humidity,
                 MAX(air_humidity_percent) as max_humidity,
                 SUM(CASE WHEN water_level_low_status = 1 THEN 1 ELSE 0 END) as low_water_alerts,
-                SUM(CASE WHEN water_level_high_status = 1 THEN 1 ELSE 0 END) as high_water_alerts,
+                SUM(CASE WHEN water_level_high_status = 0 AND water_level_low_status = 0 THEN 1 ELSE 0 END) as high_water_alerts,
                 SUM(CASE WHEN pump_status = 1 THEN 1 ELSE 0 END) as pump_on_count,
                 SUM(CASE WHEN valve_status = 1 THEN 1 ELSE 0 END) as valve_on_count
             FROM sensor_data
@@ -691,7 +691,7 @@ router.get('/comprehensive-daily', authenticateToken, authorizeAdmin, async (req
                 MIN(soil_moisture_2_percent) as min_soil2,
                 MIN(soil_moisture_3_percent) as min_soil3,
                 SUM(CASE WHEN water_level_low_status = 1 THEN 1 ELSE 0 END) as low_water_alerts,
-                SUM(CASE WHEN water_level_high_status = 1 THEN 1 ELSE 0 END) as high_water_alerts
+                SUM(CASE WHEN water_level_high_status = 0 AND water_level_low_status = 0 THEN 1 ELSE 0 END) as high_water_alerts
              FROM sensor_data
              WHERE DATE(timestamp) = ? AND device_id = ?`,
             [date, device_id]

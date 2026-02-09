@@ -466,13 +466,13 @@
                         if (text) text.textContent = 'OK';
                     }
                 } else if (elementId === 'water-high-status') {
-                    // For high water level: 1 = Full, 0 = OK
-                    if (isHigh === 1) {
+                    // CPE: high=upper sensor. 0=submerged (Full), 1=dry (Not Full)
+                    if (isHigh === 0) {
                         if (dot) dot.className = 'status-dot active';
                         if (text) text.textContent = 'Full';
                     } else {
                         if (dot) dot.className = 'status-dot inactive';
-                        if (text) text.textContent = 'OK';
+                        if (text) text.textContent = 'Not Full';
                     }
                 }
             }

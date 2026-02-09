@@ -455,19 +455,19 @@ const UserDashboard = () => {
                           <div className="flex items-center gap-2">
                             <motion.div
                               animate={{
-                                opacity: sensorData.water_level_high_status === 1 ? [1, 0.3, 1] : 1,
+                                opacity: sensorData.water_level_high_status === 0 ? [1, 0.3, 1] : 1,
                               }}
                               transition={{
                                 duration: 1,
-                                repeat: sensorData.water_level_high_status === 1 ? Infinity : 0,
+                                repeat: sensorData.water_level_high_status === 0 ? Infinity : 0,
                                 ease: 'easeInOut',
                               }}
                               className={`w-3 h-3 rounded-full ${
-                                sensorData.water_level_high_status === 1 ? 'bg-eco-green-medium' : 'bg-gray-400'
+                                sensorData.water_level_high_status === 0 ? 'bg-eco-green-medium' : 'bg-gray-400'
                               }`}
                             />
                             <span className="text-xs text-gray-600 font-medium min-w-[60px] text-left">
-                              {sensorData.water_level_high_status === 1 ? 'Full' : 'Not Full'}
+                              {sensorData.water_level_high_status === 0 ? 'Full' : 'Not Full'}
                             </span>
                           </div>
                         </div>
