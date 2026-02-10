@@ -1,18 +1,17 @@
 const nodemailer = require('nodemailer');
 const { getPool } = require('../config/database');
 
-// Gmail SMTP configuration from environment variables
+// SMTP configuration from environment variables (Gmail, Mailgun, etc.)
 const EMAIL_CONFIG = {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host: process.env.SMTP_HOST || 'smtp.mailgun.org',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: false, // true for 465, false for other ports (587 uses TLS)
     auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD // Use App Password, not regular password
+        pass: process.env.SMTP_PASSWORD
     },
-    // Gmail-specific options
     tls: {
-        rejectUnauthorized: false // For development, set to true in production
+        rejectUnauthorized: false // For development; set to true in production
     }
 };
 
@@ -25,12 +24,7 @@ function getTransporter() {
             console.warn('Email service not configured. SMTP_USER and SMTP_PASSWORD must be set in environment variables.');
             return null;
         }
-        
-        // Verify it's a Gmail address
-        if (!EMAIL_CONFIG.auth.user.includes('@gmail.com')) {
-            console.warn('Warning: SMTP_USER does not appear to be a Gmail address. Gmail SMTP settings may not work.');
-        }
-        
+
         transporter = nodemailer.createTransport({
             host: EMAIL_CONFIG.host,
             port: EMAIL_CONFIG.port,
@@ -44,7 +38,7 @@ function getTransporter() {
             if (error) {
                 console.error('Email service connection failed:', error);
             } else {
-                console.log('✓ Email service (Gmail) is ready to send messages');
+                console.log('✓ Email service is ready to send messages');
             }
         });
     }
@@ -68,7 +62,7 @@ async function getActiveUserEmails() {
 }
 
 /**
- * Send email notification to all active users via Gmail
+ * Send email notification to all active users via SMTP
  */
 async function sendEmailNotification(subject, htmlContent, textContent) {
     const emailTransporter = getTransporter();
@@ -93,7 +87,6 @@ async function sendEmailNotification(subject, htmlContent, textContent) {
             subject: subject,
             text: textContent,
             html: htmlContent,
-            // Gmail-specific headers
             headers: {
                 'X-Priority': '1',
                 'X-MSMail-Priority': 'High',
@@ -102,7 +95,7 @@ async function sendEmailNotification(subject, htmlContent, textContent) {
         };
 
         const info = await emailTransporter.sendMail(mailOptions);
-        console.log(`✓ Email notification sent via Gmail to ${recipients.length} user(s). Message ID: ${info.messageId}`);
+        console.log(`✓ Email notification sent to ${recipients.length} user(s). Message ID: ${info.messageId}`);
         
         return { 
             success: true, 
@@ -110,15 +103,12 @@ async function sendEmailNotification(subject, htmlContent, textContent) {
             recipients: recipients.length 
         };
     } catch (error) {
-        console.error('Error sending email notification via Gmail:', error);
-        
-        // Provide helpful error messages for common Gmail issues
+        console.error('Error sending email notification:', error);
         if (error.code === 'EAUTH') {
-            console.error('Gmail authentication failed. Check your App Password.');
-        } else if (error.code === 'ECONNECTION') {
-            console.error('Gmail connection failed. Check your internet connection and SMTP settings.');
+            console.error('SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD.');
+        } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+            console.error('SMTP connection failed. Check network and SMTP host/port.');
         }
-        
         return { success: false, error: error.message };
     }
 }
@@ -176,7 +166,7 @@ async function sendCriticalMoistureAlert(sensorData) {
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; text-align: center;">
                 This is an automated alert from the <strong>EcoFlow Smart Greenhouse Management System</strong>.<br>
-                Sent via Gmail SMTP
+                Sent via SMTP
             </p>
         </div>
     `;
@@ -237,7 +227,7 @@ async function sendSprinklerActivationNotification(commandData, requestedBy) {
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; text-align: center;">
                 This is an automated notification from the <strong>EcoFlow Smart Greenhouse Management System</strong>.<br>
-                Sent via Gmail SMTP
+                Sent via SMTP
             </p>
         </div>
     `;
