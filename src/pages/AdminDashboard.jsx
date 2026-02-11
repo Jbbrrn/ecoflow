@@ -241,6 +241,19 @@ const AdminDashboard = () => {
     return isNaN(num) ? null : num.toFixed(1);
   };
 
+  const formatDisplayDate = (dateValue) => {
+    if (!dateValue) return 'N/A';
+    const d = new Date(dateValue);
+    if (isNaN(d)) return String(dateValue);
+    // Show date in Philippines timezone using a readable format
+    return d.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      timeZone: 'Asia/Manila',
+    });
+  };
+
   const toNumber = (value) => {
     if (value === null || value === undefined) return 0;
     const num = parseFloat(value);
@@ -616,6 +629,49 @@ const AdminDashboard = () => {
         
         filename = `water-usage-report-${new Date().toISOString().split('T')[0]}.csv`;
         
+      } else if (reportType === 'energy-consumption') {
+        // Energy Consumption Report CSV
+        csvContent = 'Energy Consumption Report\n';
+        csvContent += `Generated,${new Date().toLocaleString()}\n`;
+        if (startDate) csvContent += `Start Date,${startDate}\n`;
+        if (endDate) csvContent += `End Date,${endDate}\n`;
+        csvContent += '\n';
+
+        if (reportData.summary) {
+          const s = reportData.summary;
+          csvContent += 'Summary\n';
+          csvContent += 'Metric,Value\n';
+          csvContent += `Total Irrigation Energy (kWh),${escapeCSV(s.total_irrigation_kwh)}\n`;
+          csvContent += `Total Device Energy (kWh),${escapeCSV(s.total_device_kwh)}\n`;
+          csvContent += `Total RPi Energy (kWh),${escapeCSV(s.total_rpi_kwh)}\n`;
+          csvContent += `Total ESP32 Energy (kWh),${escapeCSV(s.total_esp32_kwh)}\n`;
+          csvContent += `Grand Total Energy (kWh),${escapeCSV(s.grand_total_kwh)}\n`;
+          csvContent += `Days Recorded,${escapeCSV(s.days_recorded)}\n`;
+          csvContent += `Avg Daily Irrigation (kWh),${escapeCSV(s.avg_daily_irrigation_kwh)}\n`;
+          csvContent += `Avg Daily Device (kWh),${escapeCSV(s.avg_daily_device_kwh)}\n`;
+          csvContent += `Avg Daily Total (kWh),${escapeCSV(s.avg_daily_total_kwh)}\n`;
+          csvContent += '\n';
+        }
+
+        if (reportData.daily_breakdown && reportData.daily_breakdown.length > 0) {
+          csvContent += 'Daily Breakdown\n';
+          csvContent += 'Date,Sessions,Irrigation (kWh),RPi (kWh),ESP32 (kWh),Device (kWh),Total (kWh)\n';
+          reportData.daily_breakdown.forEach((d) => {
+            const row = [
+              d.date,
+              d.sessions,
+              d.irrigation_kwh,
+              d.rpi_kwh,
+              d.esp32_kwh,
+              d.total_device_kwh,
+              d.total_kwh,
+            ];
+            csvContent += row.map((cell) => escapeCSV(cell)).join(',') + '\n';
+          });
+        }
+
+        filename = `energy-consumption-report-${new Date().toISOString().split('T')[0]}.csv`;
+        
       } else {
         // Generic export for other report types
         csvContent = `${reportType} Report\n`;
@@ -961,6 +1017,60 @@ const AdminDashboard = () => {
           doc.setTextColor(100, 100, 100);
           doc.text('No water usage data available for the selected date range.', 14, yPosition);
         }
+      } else if (reportType === 'energy-consumption') {
+        // Energy Consumption Report PDF - uses /api/reports/energy-consumption
+        const summary = reportData?.summary;
+        const daily = reportData?.daily_breakdown || [];
+
+        if (summary) {
+          const summaryData = [
+            ['Total Irrigation Energy', `${formatNum(summary.total_irrigation_kwh, 4)} kWh`],
+            ['Total Device Energy', `${formatNum(summary.total_device_kwh, 4)} kWh`],
+            ['Total RPi Energy', `${formatNum(summary.total_rpi_kwh, 4)} kWh`],
+            ['Total ESP32 Energy', `${formatNum(summary.total_esp32_kwh, 4)} kWh`],
+            ['Grand Total Energy', `${formatNum(summary.grand_total_kwh, 4)} kWh`],
+            ['Days Recorded', summary.days_recorded || 0],
+            ['Avg Daily Irrigation', `${formatNum(summary.avg_daily_irrigation_kwh, 4)} kWh`],
+            ['Avg Daily Device', `${formatNum(summary.avg_daily_device_kwh, 4)} kWh`],
+            ['Avg Daily Total', `${formatNum(summary.avg_daily_total_kwh, 4)} kWh`],
+          ];
+
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Energy Consumption Summary', 'Value']],
+            body: summaryData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] },
+          });
+          yPosition = doc.lastAutoTable.finalY + 10;
+        }
+
+        if (daily.length > 0) {
+          checkPageBreak(30);
+          const dailyData = daily.map((d) => [
+            d.date,
+            d.sessions,
+            formatNum(d.irrigation_kwh, 4),
+            formatNum(d.rpi_kwh, 4),
+            formatNum(d.esp32_kwh, 4),
+            formatNum(d.total_device_kwh, 4),
+            formatNum(d.total_kwh, 4),
+          ]);
+
+          autoTable(doc, {
+            startY: yPosition,
+            head: [['Date', 'Sessions', 'Irrigation (kWh)', 'RPi (kWh)', 'ESP32 (kWh)', 'Device (kWh)', 'Total (kWh)']],
+            body: dailyData,
+            theme: 'striped',
+            headStyles: { fillColor: [61, 134, 11] },
+            styles: { fontSize: 8 },
+          });
+        } else if (!summary) {
+          yPosition += 10;
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          doc.text('No energy consumption data available for the selected date range.', 14, yPosition);
+        }
       }
 
       // Save PDF
@@ -1018,6 +1128,15 @@ const AdminDashboard = () => {
         </svg>
       )
     },
+    {
+      id: 'energy-consumption',
+      label: 'Energy Consumption',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
   ];
 
   const renderDeviceCommandsReport = () => {
@@ -1047,7 +1166,11 @@ const AdminDashboard = () => {
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Device Commands Report</h3>
-        
+        <p className="text-gray-600">
+          This report shows how often the system was told to turn the pump and valve ON or OFF,
+          how many of those commands were successful, and which users sent them.
+        </p>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
@@ -1192,6 +1315,9 @@ const AdminDashboard = () => {
     if (reportType === 'water-usage') {
       return renderWaterUsageReport();
     }
+    if (reportType === 'energy-consumption') {
+      return renderEnergyConsumptionReport();
+    }
 
     return (
       <div className="bg-surface rounded-lg p-6 border border-gray-200">
@@ -1221,6 +1347,10 @@ const AdminDashboard = () => {
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">User Activity Report</h3>
+        <p className="text-gray-600">
+          This report summarizes which accounts are using the system, how many commands each user sends,
+          and whether their accounts are active or inactive.
+        </p>
         <div className="bg-surface rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1337,7 +1467,11 @@ const AdminDashboard = () => {
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Sensor Data Summary Report</h3>
-        
+        <p className="text-gray-600">
+          This report gives an overview of temperature, humidity, and soil moisture over time so you can
+          quickly see whether the greenhouse stayed in a healthy range for your plants.
+        </p>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
             <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Readings</div>
@@ -1449,6 +1583,10 @@ const AdminDashboard = () => {
       return (
         <div className="space-y-6">
           <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
+          <p className="text-gray-600">
+            This report shows how much water the system used, how long the pump and valve were ON,
+            and how much electricity was spent to deliver that water during the selected dates.
+          </p>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
@@ -1487,7 +1625,7 @@ const AdminDashboard = () => {
                   <tbody className="divide-y divide-gray-200">
                     {dailyBreakdown.map((day, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-700">{day.date}</td>
+                        <td className="px-4 py-3 text-gray-700">{formatDisplayDate(day.date)}</td>
                         <td className="px-4 py-3 text-gray-700">{day.sessions}</td>
                         <td className="px-4 py-3 text-gray-700">{day.water_liters}</td>
                         <td className="px-4 py-3 text-gray-700">{Math.round(parseFloat(day.pump_seconds || 0) / 60)}</td>
@@ -1508,7 +1646,10 @@ const AdminDashboard = () => {
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
-        
+        <p className="text-gray-600">
+          This report shows how often the pump and valve were activated and how long they stayed ON,
+          which helps you understand irrigation activity even without detailed resource data.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
             <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Pump Activations</div>
@@ -1527,6 +1668,137 @@ const AdminDashboard = () => {
             <div className="text-3xl font-bold text-eco-green-dark">{usage.valve?.total_on_time_minutes || 0} min</div>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const renderEnergyConsumptionReport = () => {
+    const summary = reportData?.summary;
+    const daily = reportData?.daily_breakdown || [];
+
+    if (!summary && (!daily || daily.length === 0)) {
+      return (
+        <div className="bg-surface rounded-lg p-6 border border-gray-200">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Energy Consumption Report</h3>
+          <p className="text-gray-600">
+            No energy consumption data available for the selected date range.
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!startDate || !endDate
+              ? 'Select a date range to see energy consumption.'
+              : 'Ensure the system has been active and sending resource consumption / sensor data during this period.'}
+          </p>
+        </div>
+      );
+    }
+
+    const safeNumber = (value) => {
+      const num = parseFloat(value);
+      return isNaN(num) ? 0 : num;
+    };
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-gray-800">Energy Consumption Report</h3>
+        <p className="text-gray-600">
+          This report explains how much electricity the irrigation system and devices (RPi and ESP32)
+          used each day, so you can estimate the energy cost of running Eco Flow.
+        </p>
+
+        {summary && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                Total Irrigation Energy
+              </div>
+              <div className="text-3xl font-bold text-eco-green-dark">
+                {safeNumber(summary.total_irrigation_kwh).toFixed(4)} kWh
+              </div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                Total Device Energy
+              </div>
+              <div className="text-3xl font-bold text-eco-green-dark">
+                {safeNumber(summary.total_device_kwh).toFixed(4)} kWh
+              </div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                Grand Total Energy
+              </div>
+              <div className="text-3xl font-bold text-eco-green-dark">
+                {safeNumber(summary.grand_total_kwh).toFixed(4)} kWh
+              </div>
+            </div>
+            <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                Average Daily Total
+              </div>
+              <div className="text-3xl font-bold text-eco-green-dark">
+                {safeNumber(summary.avg_daily_total_kwh).toFixed(4)} kWh
+              </div>
+            </div>
+          </div>
+        )}
+
+        {daily && daily.length > 0 && (
+          <div className="bg-surface rounded-lg p-6 border border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Daily Breakdown</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Sessions
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Irrigation (kWh)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      RPi (kWh)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      ESP32 (kWh)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Device (kWh)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Total (kWh)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {daily.map((day, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-700">{formatDisplayDate(day.date)}</td>
+                      <td className="px-4 py-3 text-gray-700">{day.sessions}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {safeNumber(day.irrigation_kwh).toFixed(4)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {safeNumber(day.rpi_kwh).toFixed(4)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {safeNumber(day.esp32_kwh).toFixed(4)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {safeNumber(day.total_device_kwh).toFixed(4)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {safeNumber(day.total_kwh).toFixed(4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

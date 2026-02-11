@@ -33,13 +33,13 @@ const AboutSection = () => {
               <br />
               Innovation in Smart Agriculture
             </h2>
-            <p className="text-lg text-eco-green-dark mb-6 leading-relaxed">
+            <p className="text-lg text-gray-700 mb-6 leading-relaxed">
               Eco Flow is a smart greenhouse platform designed to optimize plant care through
               intelligent monitoring and automation. It combines IoT sensors, real-time data
               analytics, and AI-powered assistance to help users manage environmental conditions,
               irrigation schedules, and crop health with precision and ease.
             </p>
-            <p className="text-lg text-eco-green-dark leading-relaxed">
+            <p className="text-lg text-gray-700 leading-relaxed">
               Built for sustainable urban gardening, Eco Flow empowers growers to make informed
               decisions, reduce resource waste, and cultivate healthier plants through technology.
             </p>
