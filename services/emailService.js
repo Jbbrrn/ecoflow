@@ -1,30 +1,33 @@
 const nodemailer = require('nodemailer');
 const { getPool } = require('../config/database');
 
-// SMTP configuration from environment variables (Gmail, Mailgun, etc.)
+// Mailgun HTTP API (preferred on Render - no outbound SMTP)
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN; // e.g. ecoflowublc.org
+const MAILGUN_API_BASE = process.env.MAILGUN_API_BASE || 'https://api.mailgun.net'; // use https://api.eu.mailgun.net for EU
+const MAILGUN_FROM = process.env.MAILGUN_FROM; // e.g. "EcoFlow System <postmaster@ecoflowublc.org>"
+
+// SMTP configuration (fallback for local / Gmail, etc.)
 const EMAIL_CONFIG = {
     host: process.env.SMTP_HOST || 'smtp.mailgun.org',
     port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: false, // true for 465, false for other ports (587 uses TLS)
+    secure: false,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD
     },
     tls: {
-        rejectUnauthorized: false // For development; set to true in production
+        rejectUnauthorized: false
     }
 };
 
-// Create reusable transporter
 let transporter = null;
 
 function getTransporter() {
     if (!transporter) {
         if (!EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
-            console.warn('Email service not configured. SMTP_USER and SMTP_PASSWORD must be set in environment variables.');
             return null;
         }
-
         transporter = nodemailer.createTransport({
             host: EMAIL_CONFIG.host,
             port: EMAIL_CONFIG.port,
@@ -32,17 +35,59 @@ function getTransporter() {
             auth: EMAIL_CONFIG.auth,
             tls: EMAIL_CONFIG.tls
         });
-        
-        // Verify connection on startup
         transporter.verify((error, success) => {
             if (error) {
-                console.error('Email service connection failed:', error);
+                console.error('Email service (SMTP) connection failed:', error.message);
             } else {
-                console.log('✓ Email service is ready to send messages');
+                console.log('✓ Email service (SMTP) is ready to send messages');
             }
         });
     }
     return transporter;
+}
+
+/**
+ * Send email via Mailgun HTTP API (works on Render where SMTP is blocked).
+ * Requires: MAILGUN_API_KEY, MAILGUN_DOMAIN. Optional: MAILGUN_API_BASE (EU), MAILGUN_FROM.
+ */
+async function sendEmailViaMailgunApi(toAddresses, subject, htmlContent, textContent) {
+    if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
+        return { success: false, message: 'Mailgun API not configured (MAILGUN_API_KEY, MAILGUN_DOMAIN)' };
+    }
+    const from = MAILGUN_FROM || `EcoFlow System <postmaster@${MAILGUN_DOMAIN}>`;
+    const url = `${MAILGUN_API_BASE.replace(/\/$/, '')}/v3/${MAILGUN_DOMAIN}/messages`;
+    const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64');
+
+    const form = new URLSearchParams();
+    form.append('from', from);
+    form.append('to', toAddresses);
+    form.append('subject', subject);
+    form.append('text', textContent);
+    form.append('html', htmlContent);
+
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: form.toString(),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const errMsg = data.message || data.error || res.statusText;
+            console.error('Mailgun API error:', res.status, errMsg);
+            return { success: false, error: errMsg };
+        }
+        const id = data.id || data.message?.id;
+        console.log(`✓ Email notification sent via Mailgun API to ${toAddresses.split(',').length} recipient(s). ID: ${id || 'n/a'}`);
+        return { success: true, messageId: id, recipients: toAddresses.split(',').length };
+    } catch (error) {
+        console.error('Error sending email via Mailgun API:', error);
+        return { success: false, error: error.message };
+    }
 }
 
 /**
@@ -62,25 +107,30 @@ async function getActiveUserEmails() {
 }
 
 /**
- * Send email notification to all active users via SMTP
+ * Send email notification to all active users.
+ * Uses Mailgun HTTP API if MAILGUN_API_KEY + MAILGUN_DOMAIN are set (recommended on Render);
+ * otherwise falls back to SMTP.
  */
 async function sendEmailNotification(subject, htmlContent, textContent) {
-    const emailTransporter = getTransporter();
-    if (!emailTransporter) {
-        console.warn('Email service not available. Skipping email notification.');
-        return { success: false, message: 'Email service not configured' };
+    const recipients = await getActiveUserEmails();
+    if (recipients.length === 0) {
+        console.warn('No active users with email addresses found.');
+        return { success: false, message: 'No recipients found' };
+    }
+    const emailAddresses = recipients.map(r => r.email).join(', ');
+
+    // Prefer Mailgun HTTP API when configured (works on Render; no outbound SMTP)
+    if (MAILGUN_API_KEY && MAILGUN_DOMAIN) {
+        return await sendEmailViaMailgunApi(emailAddresses, subject, htmlContent, textContent);
     }
 
+    // Fallback: SMTP (e.g. local dev with Gmail)
+    const emailTransporter = getTransporter();
+    if (!emailTransporter) {
+        console.warn('Email service not available. Set MAILGUN_API_KEY + MAILGUN_DOMAIN (or SMTP_*) in environment.');
+        return { success: false, message: 'Email service not configured' };
+    }
     try {
-        const recipients = await getActiveUserEmails();
-        
-        if (recipients.length === 0) {
-            console.warn('No active users with email addresses found.');
-            return { success: false, message: 'No recipients found' };
-        }
-
-        const emailAddresses = recipients.map(r => r.email).join(', ');
-        
         const mailOptions = {
             from: `"EcoFlow System" <${EMAIL_CONFIG.auth.user}>`,
             to: emailAddresses,
@@ -93,15 +143,9 @@ async function sendEmailNotification(subject, htmlContent, textContent) {
                 'Importance': 'high'
             }
         };
-
         const info = await emailTransporter.sendMail(mailOptions);
         console.log(`✓ Email notification sent to ${recipients.length} user(s). Message ID: ${info.messageId}`);
-        
-        return { 
-            success: true, 
-            messageId: info.messageId,
-            recipients: recipients.length 
-        };
+        return { success: true, messageId: info.messageId, recipients: recipients.length };
     } catch (error) {
         console.error('Error sending email notification:', error);
         if (error.code === 'EAUTH') {
