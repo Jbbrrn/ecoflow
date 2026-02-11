@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { apiClient } from '../services/client.js';
+import { useLanguage } from '../LanguageContext';
 
 const Analytics = () => {
+  const { language, t } = useLanguage();
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(24); // hours
@@ -241,7 +243,7 @@ const Analytics = () => {
     const s3 = currentStats.soil?.sensor3?.current ?? 0;
     const temp = currentStats.temperature?.current ?? 0;
     const hum = currentStats.humidity?.current ?? 0;
-    const snapshot = `${s1.toFixed(0)},${s2.toFixed(0)},${s3.toFixed(0)},${Number(temp).toFixed(1)},${Number(hum).toFixed(1)}`;
+    const snapshot = `${language}:${s1.toFixed(0)},${s2.toFixed(0)},${s3.toFixed(0)},${Number(temp).toFixed(1)},${Number(hum).toFixed(1)}`;
 
     if (cardMeaningsDebounceRef.current) clearTimeout(cardMeaningsDebounceRef.current);
     cardMeaningsDebounceRef.current = setTimeout(() => {
@@ -252,6 +254,7 @@ const Analytics = () => {
         soil: currentStats.soil,
         temperature: currentStats.temperature,
         humidity: currentStats.humidity,
+        language,
       }).then((data) => {
         if (!data.fallback && data.soil && data.temperature && data.humidity) {
           setCardMeanings({ soil: data.soil, temperature: data.temperature, humidity: data.humidity });
@@ -261,7 +264,7 @@ const Analytics = () => {
     return () => {
       if (cardMeaningsDebounceRef.current) clearTimeout(cardMeaningsDebounceRef.current);
     };
-  }, [historyData, timeRange]);
+  }, [historyData, timeRange, language]);
 
   // Data-driven "What this means" copy (used when AI is unavailable or as fallback)
   const getSoilMeaning = (soil) => {
@@ -557,10 +560,11 @@ const Analytics = () => {
         className="bg-surface rounded-xl shadow-lg p-6"
       >
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-700 mb-2">Soil Moisture Trends</h3>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">
+            {t('analytics.soilTrendsTitle')}
+          </h3>
           <p className="text-sm text-gray-500">
-            Track how soil moisture changes over time. The dashed green line shows the target range start (70%).
-            Ideally, all three sensors should stay between 70–89% for healthy plants.
+            {t('analytics.soilTrendsBody')}
           </p>
         </div>
         {chartData.length > 0 ? (
@@ -608,11 +612,11 @@ const Analytics = () => {
         className="bg-surface rounded-xl shadow-lg p-6"
       >
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-700 mb-2">Temperature & Humidity Trends</h3>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">
+            {t('analytics.tempHumTrendsTitle')}
+          </h3>
           <p className="text-sm text-gray-500">
-            See how temperature (red) and humidity (blue) change together. 
-            Temperature is measured in Celsius (°C) on the left, humidity in percentage (%) on the right.
-            These two factors work together to create the perfect growing environment.
+            {t('analytics.tempHumTrendsBody')}
           </p>
         </div>
         {chartData.length > 0 ? (

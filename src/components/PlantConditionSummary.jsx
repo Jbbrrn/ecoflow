@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/client';
+import { useLanguage } from '../LanguageContext';
 
 // SVG Icon Components
 const PlantIcon = () => (
@@ -33,6 +34,7 @@ const CrossIcon = () => (
 );
 
 const PlantConditionSummary = ({ sensorData }) => {
+  const { language, t } = useLanguage();
   // Calculate overall health score and condition
   const plantCondition = useMemo(() => {
     const temp = parseFloat(sensorData.air_temperature_celsius) || 0;
@@ -205,6 +207,7 @@ const PlantConditionSummary = ({ sensorData }) => {
         sensorData,
         condition: plantCondition.condition,
         attentionItems: plantCondition.attentionItems,
+        language,
       }).then((data) => {
         setSummaryLoading(false);
         if (data.fallback || !data.summary) {
@@ -224,12 +227,41 @@ const PlantConditionSummary = ({ sensorData }) => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [sensorData]);
+  }, [sensorData, plantCondition.condition, plantCondition.attentionItems, language]);
 
   const showAiSummary = aiSummary && !summaryError && !summaryLoading;
   const showFallbackRows = !showAiSummary && !summaryLoading;
 
   const { ConditionIcon } = plantCondition;
+
+  const getLocalizedConditionLine = () => {
+    let key = 'good';
+    if (plantCondition.condition === 'Fair') key = 'fair';
+    else if (plantCondition.condition === 'Needs Attention') key = 'needsAttention';
+    return t(`plantSummary.status.${key}`);
+  };
+
+  const translateAttentionItem = (item) => {
+    if (language !== 'fil') return item;
+    if (item === 'Humidity very high') return 'Napakataas ng humidity';
+    if (item === 'Humidity very low') return 'Masyadong mababa ang humidity';
+    if (item === 'Temperature too high') return 'Masyadong mataas ang temperatura';
+    if (item === 'Temperature too low') return 'Masyadong mababa ang temperatura';
+
+    const dryMatch = item.match(/^(\d+)\s+sensor\(s\)\s+below\s+70%\s+-\s+irrigation\s+recommended$/);
+    if (dryMatch) {
+      const n = dryMatch[1];
+      return `${n} sensor(s) nasa ibaba ng 70% - inirerekomendang magdilig`;
+    }
+
+    const wetMatch = item.match(/^(\d+)\s+sensor\(s\)\s+very\s+wet\s+\(≥ 90%\)$/);
+    if (wetMatch) {
+      const n = wetMatch[1];
+      return `${n} sensor(s) sobrang basa (≥ 90%)`;
+    }
+
+    return item;
+  };
 
   return (
     <motion.div
@@ -241,14 +273,14 @@ const PlantConditionSummary = ({ sensorData }) => {
     >
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-700 uppercase tracking-wide">
-          Plant Condition Summary
+          {t('plantSummary.title')}
         </h2>
         <div className="flex items-center gap-2">
           <div style={{ color: plantCondition.conditionColor }}>
             <ConditionIcon />
           </div>
           <span className="text-lg font-semibold" style={{ color: plantCondition.conditionColor }}>
-            Plants are in {plantCondition.condition.toLowerCase()} condition
+            {getLocalizedConditionLine()}
           </span>
         </div>
       </div>
@@ -257,7 +289,7 @@ const PlantConditionSummary = ({ sensorData }) => {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-            Overall Health Score
+            {t('plantSummary.overallScoreLabel')}
           </span>
           <span className="text-3xl font-bold text-gray-800">{plantCondition.overallScore}%</span>
         </div>
@@ -372,10 +404,14 @@ const PlantConditionSummary = ({ sensorData }) => {
               <WarningIcon />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-red-800 mb-2">Attention Needed</h4>
+              <h4 className="text-sm font-semibold text-red-800 mb-2">
+                {t('plantSummary.attentionHeading')}
+              </h4>
               <ul className="space-y-1">
                 {plantCondition.attentionItems.map((item, index) => (
-                  <li key={index} className="text-xs text-red-700">• {item}</li>
+                  <li key={index} className="text-xs text-red-700">
+                    • {translateAttentionItem(item)}
+                  </li>
                 ))}
               </ul>
             </div>

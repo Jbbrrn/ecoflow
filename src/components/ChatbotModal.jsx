@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../LanguageContext';
 
 const ChatbotModal = ({ isOpen, onClose }) => {
+  const { language, t } = useLanguage();
+
   const [messages, setMessages] = useState([
     {
       type: 'bot',
-      text: "Hello! I'm EcoBot, your AI irrigation assistant. I can help you with:",
+      text: t('chatbot.greeting'),
       list: [
-        'Current soil conditions and sensor readings',
-        'Crop suitability based on environmental data'
+        t('chatbot.greeting.item1'),
+        t('chatbot.greeting.item2')
       ]
     }
   ]);
@@ -46,7 +49,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: text.trim(), message: text.trim() }),
+        body: JSON.stringify({ question: text.trim(), message: text.trim(), language }),
       });
 
       console.log('Response status:', response.status);
@@ -146,9 +149,9 @@ const ChatbotModal = ({ isOpen, onClose }) => {
   };
 
   const exampleQuestions = [
-    "What is the current soil moisture level?",
-    "What crops are suitable?",
-    "When should I water my plants?"
+    t('chatbot.example1'),
+    t('chatbot.example2'),
+    t('chatbot.example3'),
   ];
 
   return (
@@ -200,8 +203,8 @@ const ChatbotModal = ({ isOpen, onClose }) => {
             {/* Header */}
             <div className="bg-gradient-to-r from-eco-green-medium to-eco-green-dark px-6 py-4 flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="text-white font-bold text-lg">EcoBot</h3>
-                <p className="text-white/80 text-xs mt-0.5">Your AI irrigation assistant</p>
+                <h3 className="text-white font-bold text-lg">{t('chatbot.title')}</h3>
+                <p className="text-white/80 text-xs mt-0.5">{t('chatbot.subtitle')}</p>
               </div>
               <button
                 onClick={onClose}
@@ -302,7 +305,7 @@ const ChatbotModal = ({ isOpen, onClose }) => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask me about your irrigation system..."
+                  placeholder={t('chatbot.placeholder')}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-eco-green-medium focus:border-transparent text-sm"
                   disabled={isLoading}
                 />

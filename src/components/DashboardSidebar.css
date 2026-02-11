@@ -66,12 +66,12 @@
 
 /* Sidebar Header */
 .sidebar-header {
-  padding: 1.5rem 1.25rem;
+  padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 2px solid var(--sidebar-border);
-  min-height: 80px;
+  min-height: 84px;
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -84,8 +84,8 @@
 }
 
 .sidebar-logo {
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
   flex-shrink: 0;
   transition: all 0.2s ease;

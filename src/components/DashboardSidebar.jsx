@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../LanguageContext';
+import LanguageToggle from './LanguageToggle';
 import './DashboardSidebar.css';
 
 // SVG Icon Components - Updated to match design
@@ -69,6 +71,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [username, setUsername] = useState('');
+  const { t } = useLanguage();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -122,14 +125,14 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
 
   const navItems = userRole === 'admin' 
     ? [
-        { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
-        { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
-        { id: 'reports', icon: ReportsIcon, label: 'Generate Reports' },
-        { id: 'manage-accounts', icon: ManageAccountsIcon, label: 'Manage Accounts' },
+        { id: 'dashboard', icon: DashboardIcon, labelKey: 'nav.dashboard' },
+        { id: 'controls', icon: ControlsIcon, labelKey: 'nav.manualControls' },
+        { id: 'reports', icon: ReportsIcon, labelKey: 'nav.reports' },
+        { id: 'manage-accounts', icon: ManageAccountsIcon, labelKey: 'nav.manageAccounts' },
       ]
     : [
-        { id: 'dashboard', icon: DashboardIcon, label: 'Dashboard' },
-        { id: 'controls', icon: ControlsIcon, label: 'Manual Controls' },
+        { id: 'dashboard', icon: DashboardIcon, labelKey: 'nav.dashboard' },
+        { id: 'controls', icon: ControlsIcon, labelKey: 'nav.manualControls' },
       ];
 
   const handleLogout = () => {
@@ -196,7 +199,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
         {/* Navigation */}
         <nav className="sidebar-nav">
           {!effectiveCollapsed && (
-            <div className="nav-section-heading">NAVIGATION</div>
+            <div className="nav-section-heading">{t('nav.navigation')}</div>
           )}
           <ul className="nav-list">
             {navItems.map((item) => {
@@ -206,14 +209,14 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
                   <button
                     className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
                     onClick={() => handleNavClick(item.id)}
-                    title={isCollapsed ? item.label : ''}
+                    title={isCollapsed ? t(item.labelKey) : ''}
                   >
                     <span className="nav-icon-wrapper">
                       <span className="nav-icon">
                         <IconComponent />
                       </span>
                     </span>
-                    {!effectiveCollapsed && <span className="nav-label">{item.label}</span>}
+                    {!effectiveCollapsed && <span className="nav-label">{t(item.labelKey)}</span>}
                     {activeSection === item.id && (
                       <span className="nav-indicator"></span>
                     )}
@@ -239,7 +242,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
                   {username || (userRole === 'admin' ? 'Admin User' : 'User')}
                 </div>
                 <div className="user-role-text">
-                  {userRole === 'admin' ? 'Administrator' : 'User'}
+                  {userRole === 'admin' ? t('sidebar.role.admin') : t('sidebar.role.user')}
                 </div>
               </div>
             )}
@@ -252,7 +255,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
             <span className="logout-icon">
               <LogoutIcon />
             </span>
-            {!isCollapsed && <span className="logout-text">Logout</span>}
+            {!isCollapsed && <span className="logout-text">{t('sidebar.logout')}</span>}
           </button>
         </div>
       </aside>

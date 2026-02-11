@@ -216,7 +216,11 @@ async function fetchSensorData(intent, hours = 24) {
 /**
  * Build system prompt for OpenAI with enhanced reference handling
  */
-function buildSystemPrompt(intent, sensorData, needsRefs = false) {
+function buildSystemPrompt(intent, sensorData, needsRefs = false, language = 'en') {
+    const languageInstruction = language === 'fil'
+        ? 'Respond in Filipino/Tagalog using simple, everyday words that farmers will understand.'
+        : 'Respond in English using clear, simple language.';
+
     let prompt = `You are an expert AI irrigation assistant for the Eco Flow smart greenhouse irrigation system, specifically designed for Filipino farmers and agricultural practitioners. 
 Your role is to provide helpful, accurate, and actionable advice about irrigation, soil conditions, and crop management.
 
@@ -228,7 +232,7 @@ IMPORTANT RULES:
 2. Do NOT provide commands to control pumps, valves, or any hardware.
 3. Do NOT answer questions about fertilizers, pesticides, herbicides, or chemicals.
 4. Do NOT answer questions about financial matters, medical advice, or weather forecasts.
-5. Respond in the same language as the user's question (English or Filipino/Tagalog).
+5. ${languageInstruction}
 6. Use clear, concise language with short paragraphs and bullet points when appropriate.
 7. If sensor data is provided, use it to give accurate answers. Do not invent sensor values.
 8. Format your response as HTML with proper tags (p, ul, li, strong, a, h3, h4) for better readability.
@@ -288,6 +292,7 @@ Current Intent: ${intent}
 router.post('/chatbot', async (req, res) => {
     try {
         const question = (req.body.question || req.body.message || '').trim();
+        const requestedLanguage = req.body.language === 'fil' ? 'fil' : 'en';
         
         if (!question) {
             return res.status(400).json({ 
@@ -325,8 +330,8 @@ router.post('/chatbot', async (req, res) => {
         // Check if question needs references
         const needsRefs = needsReferences(classification.intent, question);
 
-        // Build system prompt with enhanced reference handling
-        const systemPrompt = buildSystemPrompt(classification.intent, sensorData, needsRefs);
+        // Build system prompt with enhanced reference handling and language preference
+        const systemPrompt = buildSystemPrompt(classification.intent, sensorData, needsRefs, requestedLanguage);
 
         // Call OpenAI Chat Completions API
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -381,7 +386,7 @@ router.post('/chatbot', async (req, res) => {
 /**
  * POST /api/summary
  * Generate a short, plain-language plant condition summary for the dashboard using OpenAI.
- * Body: { sensorData, condition, attentionItems }
+ * Body: { sensorData, condition, attentionItems, language }
  */
 router.post('/summary', async (req, res) => {
     try {
@@ -393,14 +398,19 @@ router.post('/summary', async (req, res) => {
             });
         }
 
-        const { sensorData = {}, condition = 'Good', attentionItems = [] } = req.body;
+        const { sensorData = {}, condition = 'Good', attentionItems = [], language = 'en' } = req.body;
+        const requestedLanguage = language === 'fil' ? 'fil' : 'en';
         const temp = parseFloat(sensorData.air_temperature_celsius) || 0;
         const humidity = parseFloat(sensorData.air_humidity_percent) || 0;
         const s1 = parseFloat(sensorData.soil_moisture_1_percent) || 0;
         const s2 = parseFloat(sensorData.soil_moisture_2_percent) || 0;
         const s3 = parseFloat(sensorData.soil_moisture_3_percent) || 0;
 
-        const systemPrompt = `You are a friendly greenhouse assistant. Given sensor data and the current plant condition, write 2-3 short sentences in plain language for non-experts (e.g. farmers, home gardeners). No jargon. Be warm and helpful. If there are issues in the "Attention items" list, suggest one simple action. If everything is good, say so briefly. Keep the reply under 80 words. Output only the summary text, no headings or bullet points.`;
+        const languageInstruction = requestedLanguage === 'fil'
+            ? 'Write in Filipino/Tagalog using simple, everyday words that farmers will easily understand.'
+            : 'Write in English using clear, simple language for non-experts.';
+
+        const systemPrompt = `You are a friendly greenhouse assistant. Given sensor data and the current plant condition, write 2-3 short sentences in plain language for non-experts (e.g. farmers, home gardeners). No jargon. Be warm and helpful. If there are issues in the "Attention items" list, suggest one simple action. If everything is good, say so briefly. Keep the reply under 80 words. Output only the summary text, no headings or bullet points. ${languageInstruction}`;
 
         const userContent = `Current condition: ${condition}.
 Temperature: ${temp.toFixed(1)}°C. Humidity: ${humidity.toFixed(1)}%.
@@ -453,7 +463,7 @@ Write a brief, easy-to-understand summary for the dashboard.`;
 /**
  * POST /api/summary/card-meanings
  * Generate short "What this means" text for the three analytics cards (soil, temperature, humidity).
- * Body: { soil: { sensor1: { current }, sensor2: { current }, sensor3: { current } }, temperature: { current }, humidity: { current } }
+ * Body: { soil: { sensor1: { current }, sensor2: { current }, sensor3: { current } }, temperature: { current }, humidity: { current }, language }
  * Returns: { soil: "...", temperature: "...", humidity: "..." } or fallback.
  */
 router.post('/summary/card-meanings', async (req, res) => {
@@ -462,14 +472,19 @@ router.post('/summary/card-meanings', async (req, res) => {
             return res.status(503).json({ fallback: true, error: 'Service not configured.' });
         }
 
-        const { soil = {}, temperature = {}, humidity = {} } = req.body;
+        const { soil = {}, temperature = {}, humidity = {}, language = 'en' } = req.body;
+        const requestedLanguage = language === 'fil' ? 'fil' : 'en';
         const s1 = Number(soil.sensor1?.current) || 0;
         const s2 = Number(soil.sensor2?.current) || 0;
         const s3 = Number(soil.sensor3?.current) || 0;
         const temp = Number(temperature.current) || 0;
         const hum = Number(humidity.current) || 0;
 
-        const systemPrompt = `You are a friendly greenhouse assistant. Given current sensor readings, output exactly three short "What this means" sentences: one for soil moisture, one for temperature, one for humidity. Each sentence should be 1-2 lines, plain language for non-experts. Base the text on the actual numbers (e.g. if soil is dry say they need water; if temp is ideal say so). Output valid JSON only, with keys: "soil", "temperature", "humidity". No markdown, no code block. Example: {"soil":"Your plants have enough water.","temperature":"Temperature is ideal.","humidity":"Humidity is comfortable."}`;
+        const languageInstruction = requestedLanguage === 'fil'
+            ? 'Write all three sentences in Filipino/Tagalog using simple, everyday words.'
+            : 'Write all three sentences in English using clear, simple language.';
+
+        const systemPrompt = `You are a friendly greenhouse assistant. Given current sensor readings, output exactly three short "What this means" sentences: one for soil moisture, one for temperature, one for humidity. Each sentence should be 1-2 lines, plain language for non-experts. Base the text on the actual numbers (e.g. if soil is dry say they need water; if temp is ideal say so). Output valid JSON only, with keys: "soil", "temperature", "humidity". No markdown, no code block. Example: {"soil":"Your plants have enough water.","temperature":"Temperature is ideal.","humidity":"Humidity is comfortable."} ${languageInstruction}`;
 
         const userContent = `Soil: Sensor 1 ${s1}%, Sensor 2 ${s2}%, Sensor 3 ${s3}%. Temperature: ${temp}°C. Humidity: ${hum}%. Return JSON with soil, temperature, humidity.`;
 

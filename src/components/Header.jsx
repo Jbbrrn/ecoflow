@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../LanguageContext';
 
 const Header = ({ onLoginClick }) => {
+  const { t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const headerRef = useRef(null);
@@ -54,7 +56,7 @@ const Header = ({ onLoginClick }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 flex justify-between items-center gap-4">
         <motion.a
           href="#home"
-          className="flex items-center gap-3 sm:gap-6 text-2xl sm:text-3xl font-bold text-eco-green-light transition-transform hover:scale-105 min-w-0"
+          className="flex items-center gap-1 sm:gap-2 text-2xl sm:text-3xl font-bold text-eco-green-light transition-transform hover:scale-105 min-w-0"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -72,14 +74,14 @@ const Header = ({ onLoginClick }) => {
         </motion.a>
 
         {/* Desktop: Login button */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-4">
           <motion.button
             onClick={onLoginClick}
             className="px-8 py-3 bg-gradient-to-r from-eco-green-light to-eco-green-medium text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
             whileHover={{ y: -2, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Login
+            {t('header.login')}
           </motion.button>
         </div>
 
@@ -125,27 +127,27 @@ const Header = ({ onLoginClick }) => {
                   className="py-3 px-4 rounded-lg text-eco-green-dark font-medium hover:bg-eco-green-bg"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Home
+                  {t('header.nav.home')}
                 </a>
                 <a
                   href="#features"
                   className="py-3 px-4 rounded-lg text-eco-green-dark font-medium hover:bg-eco-green-bg"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Features
+                  {t('header.nav.features')}
                 </a>
                 <a
                   href="#about"
                   className="py-3 px-4 rounded-lg text-eco-green-dark font-medium hover:bg-eco-green-bg"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  About
+                  {t('header.nav.about')}
                 </a>
                 <button
                   onClick={handleLoginClick}
                   className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-eco-green-light to-eco-green-medium shadow-lg hover:shadow-xl transition-all text-center"
                 >
-                  Login
+                  {t('header.login')}
                 </button>
               </div>
             </motion.nav>

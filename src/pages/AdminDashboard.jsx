@@ -7,6 +7,8 @@ import WaterTank from '../components/WaterTank';
 import ControlCard from '../components/ControlCard';
 import PlantConditionSummary from '../components/PlantConditionSummary';
 import Analytics from '../components/Analytics';
+import { useLanguage } from '../LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 import FloatingChatbotButton from '../components/FloatingChatbotButton';
 import CreateAccountModal from '../components/CreateAccountModal';
 import EditAccountModal from '../components/EditAccountModal';
@@ -18,6 +20,7 @@ import '../components/WaterTank.css';
 const AdminDashboard = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const { t } = useLanguage();
   const [sensorData, setSensorData] = useState({
     air_temperature_celsius: null,
     air_humidity_percent: null,
@@ -1167,8 +1170,7 @@ const AdminDashboard = () => {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Device Commands Report</h3>
         <p className="text-gray-600">
-          This report shows how often the system was told to turn the pump and valve ON or OFF,
-          how many of those commands were successful, and which users sent them.
+          {t('reports.deviceCommands.description')}
         </p>
 
         {/* Summary Cards */}
@@ -1348,8 +1350,7 @@ const AdminDashboard = () => {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">User Activity Report</h3>
         <p className="text-gray-600">
-          This report summarizes which accounts are using the system, how many commands each user sends,
-          and whether their accounts are active or inactive.
+          {t('reports.userActivity.description')}
         </p>
         <div className="bg-surface rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -1468,8 +1469,7 @@ const AdminDashboard = () => {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Sensor Data Summary Report</h3>
         <p className="text-gray-600">
-          This report gives an overview of temperature, humidity, and soil moisture over time so you can
-          quickly see whether the greenhouse stayed in a healthy range for your plants.
+          {t('reports.sensorSummary.description')}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1582,11 +1582,10 @@ const AdminDashboard = () => {
       const valveMinutes = Math.round((parseFloat(summary.total_valve_seconds) || 0) / 60);
       return (
         <div className="space-y-6">
-          <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
-          <p className="text-gray-600">
-            This report shows how much water the system used, how long the pump and valve were ON,
-            and how much electricity was spent to deliver that water during the selected dates.
-          </p>
+        <h3 className="text-2xl font-bold text-gray-800">Water Usage Report</h3>
+        <p className="text-gray-600">
+          {t('reports.waterUsage.description')}
+        </p>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-eco-green-bg rounded-lg p-6 border border-eco-green-medium/30">
@@ -1701,8 +1700,7 @@ const AdminDashboard = () => {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-gray-800">Energy Consumption Report</h3>
         <p className="text-gray-600">
-          This report explains how much electricity the irrigation system and devices (RPi and ESP32)
-          used each day, so you can estimate the energy cost of running Eco Flow.
+          {t('reports.energyConsumption.description')}
         </p>
 
         {summary && (
@@ -1823,7 +1821,12 @@ const AdminDashboard = () => {
           >
             <span className="text-2xl" aria-hidden="true">☰</span>
           </button>
-          <h1 className="text-2xl md:text-3xl font-bold text-eco-green-dark flex-1 min-w-0">Admin Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-eco-green-dark flex-1 min-w-0">
+            Admin Dashboard
+          </h1>
+          <div className="hidden md:flex">
+            <LanguageToggle compact />
+          </div>
         </header>
 
         <div className="p-6">
@@ -2074,34 +2077,46 @@ const AdminDashboard = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
                   >
-                    <h2 className="text-2xl font-bold text-eco-green-dark mb-3">Manual Controls</h2>
+                    <h2 className="text-2xl font-bold text-eco-green-dark mb-3">
+                      {t('controls.header.title')}
+                    </h2>
                     <div className="space-y-3">
                       <p className="text-gray-700 leading-relaxed">
-                        <strong>What are Manual Controls?</strong> Manual controls allow you to override the automatic irrigation system 
-                        and manually operate the water pump and valve when needed. This is useful for testing, maintenance, or when you 
-                        want to water your plants immediately.
+                        <strong>{t('controls.header.whatIs')}</strong>{' '}
+                        {t('controls.header.description')}
                       </p>
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <p className="text-sm text-gray-800 font-semibold mb-2">📋 How to Use:</p>
+                        <p className="text-sm text-gray-800 font-semibold mb-2">
+                          {t('controls.header.howTo')}
+                        </p>
                         <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
-                          <li>Click the toggle switch on any control card to turn it ON or OFF</li>
-                          <li>The switch will show "Active" when the device is running</li>
-                          <li>Monitor the status indicator to see if the command was successful</li>
-                          <li>Remember to turn OFF manual controls when done to return to automatic mode</li>
+                          <li>{t('controls.header.step1')}</li>
+                          <li>{t('controls.header.step2')}</li>
+                          <li>{t('controls.header.step3')}</li>
+                          <li>{t('controls.header.step4')}</li>
                         </ol>
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-eco-green-medium"></span>
-                          <span className="text-gray-600"><strong>Green:</strong> Device is active and running</span>
+                          <span className="text-gray-600">
+                            <strong>{t('controls.header.legend.green').split(':')[0]}:</strong>{' '}
+                            {t('controls.header.legend.green').split(':').slice(1).join(':').trim()}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                          <span className="text-gray-600"><strong>Yellow:</strong> Command is pending</span>
+                          <span className="text-gray-600">
+                            <strong>{t('controls.header.legend.yellow').split(':')[0]}:</strong>{' '}
+                            {t('controls.header.legend.yellow').split(':').slice(1).join(':').trim()}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-gray-400"></span>
-                          <span className="text-gray-600"><strong>Gray:</strong> Device is inactive</span>
+                          <span className="text-gray-600">
+                            <strong>{t('controls.header.legend.gray').split(':')[0]}:</strong>{' '}
+                            {t('controls.header.legend.gray').split(':').slice(1).join(':').trim()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2217,7 +2232,7 @@ const AdminDashboard = () => {
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                       >
-                                        ✏️ Edit
+                                        Edit
                                       </motion.button>
                                       <motion.button
                                         onClick={() => handleDeleteUser(user.user_id, user.username)}
@@ -2225,7 +2240,7 @@ const AdminDashboard = () => {
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                       >
-                                        🗑️ Delete
+                                        Delete
                                       </motion.button>
                                     </div>
                                   </td>

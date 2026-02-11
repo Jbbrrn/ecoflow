@@ -90,7 +90,7 @@ export const apiClient = {
     }
   },
 
-  async getPlantSummary({ sensorData, condition, attentionItems }) {
+  async getPlantSummary({ sensorData, condition, attentionItems, language }) {
     const token = localStorage.getItem('userToken');
     const response = await fetch(`${API_BASE_URL}/summary`, {
       method: 'POST',
@@ -98,7 +98,7 @@ export const apiClient = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ sensorData, condition, attentionItems }),
+      body: JSON.stringify({ sensorData, condition, attentionItems, language }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -107,7 +107,7 @@ export const apiClient = {
     return data;
   },
 
-  async getCardMeanings({ soil, temperature, humidity }) {
+  async getCardMeanings({ soil, temperature, humidity, language }) {
     const token = localStorage.getItem('userToken');
     const response = await fetch(`${API_BASE_URL}/summary/card-meanings`, {
       method: 'POST',
@@ -115,7 +115,7 @@ export const apiClient = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ soil, temperature, humidity }),
+      body: JSON.stringify({ soil, temperature, humidity, language }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.fallback) {

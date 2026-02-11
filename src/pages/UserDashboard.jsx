@@ -7,6 +7,8 @@ import WaterTank from '../components/WaterTank';
 import ControlCard from '../components/ControlCard';
 import PlantConditionSummary from '../components/PlantConditionSummary';
 import Analytics from '../components/Analytics';
+import { useLanguage } from '../LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 import FloatingChatbotButton from '../components/FloatingChatbotButton';
 import { apiClient } from '../services/client.js';
 import '../components/WaterTank.css';
@@ -14,6 +16,7 @@ import '../components/WaterTank.css';
 const UserDashboard = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const { t } = useLanguage();
   const [sensorData, setSensorData] = useState({
     air_temperature_celsius: null,
     air_humidity_percent: null,
@@ -244,7 +247,12 @@ const UserDashboard = () => {
           >
             <span className="text-2xl" aria-hidden="true">☰</span>
           </button>
-          <h1 className="text-2xl md:text-3xl font-bold text-eco-green-dark flex-1 min-w-0">Welcome to Eco Flow Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-eco-green-dark flex-1 min-w-0">
+            Welcome to Eco Flow Dashboard
+          </h1>
+          <div className="hidden md:flex">
+            <LanguageToggle compact />
+          </div>
         </header>
 
         <div className="p-6">
@@ -495,34 +503,46 @@ const UserDashboard = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium"
               >
-                <h2 className="text-2xl font-bold text-eco-green-dark mb-3">Manual Controls</h2>
+                <h2 className="text-2xl font-bold text-eco-green-dark mb-3">
+                  {t('controls.header.title')}
+                </h2>
                 <div className="space-y-3">
                   <p className="text-gray-700 leading-relaxed">
-                    <strong>What are Manual Controls?</strong> Manual controls allow you to override the automatic irrigation system 
-                    and manually operate the water pump and valve when needed. This is useful for testing, maintenance, or when you 
-                    want to water your plants immediately.
+                    <strong>{t('controls.header.whatIs')}</strong>{' '}
+                    {t('controls.header.description')}
                   </p>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-800 font-semibold mb-2">📋 How to Use:</p>
+                    <p className="text-sm text-gray-800 font-semibold mb-2">
+                      {t('controls.header.howTo')}
+                    </p>
                     <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
-                      <li>Click the toggle switch on any control card to turn it ON or OFF</li>
-                      <li>The switch will show "Active" when the device is running</li>
-                      <li>Monitor the status indicator to see if the command was successful</li>
-                      <li>Remember to turn OFF manual controls when done to return to automatic mode</li>
+                      <li>{t('controls.header.step1')}</li>
+                      <li>{t('controls.header.step2')}</li>
+                      <li>{t('controls.header.step3')}</li>
+                      <li>{t('controls.header.step4')}</li>
                     </ol>
                   </div>
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-eco-green-medium"></span>
-                      <span className="text-gray-600"><strong>Green:</strong> Device is active and running</span>
+                      <span className="text-gray-600">
+                        <strong>{t('controls.header.legend.green').split(':')[0]}:</strong>{' '}
+                        {t('controls.header.legend.green').split(':').slice(1).join(':').trim()}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                      <span className="text-gray-600"><strong>Yellow:</strong> Command is pending</span>
+                      <span className="text-gray-600">
+                        <strong>{t('controls.header.legend.yellow').split(':')[0]}:</strong>{' '}
+                        {t('controls.header.legend.yellow').split(':').slice(1).join(':').trim()}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-gray-400"></span>
-                      <span className="text-gray-600"><strong>Gray:</strong> Device is inactive</span>
+                      <span className="text-gray-600">
+                        <strong>{t('controls.header.legend.gray').split(':')[0]}:</strong>{' '}
+                        {t('controls.header.legend.gray').split(':').slice(1).join(':').trim()}
+                      </span>
                     </div>
                   </div>
                 </div>

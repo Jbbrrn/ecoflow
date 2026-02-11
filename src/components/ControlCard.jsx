@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import MachineSwitch from './MachineSwitch';
+import { useLanguage } from '../LanguageContext';
 
 const ControlCard = ({ 
   device, 
@@ -14,26 +15,27 @@ const ControlCard = ({
   const isPending = status === 'PENDING';
   const isSuccess = status === 'SUCCESS';
   const isFailed = status === 'FAILED';
+  const { t } = useLanguage();
 
   // Get user-friendly description based on device type
   const getDescription = () => {
     if (device === 'pump') {
       return {
-        main: 'Manually activate the sprinkler system',
-        detail: 'Click the switch to turn on the water pump and start watering your plants through the sprinkler system.',
-        action: isOn ? 'Sprinkler is running' : 'Click to start sprinkler'
+        main: t('controls.card.pump.main'),
+        detail: t('controls.card.pump.detail'),
+        action: isOn ? t('controls.card.pump.actionOn') : t('controls.card.pump.actionOff')
       };
     } else if (device === 'valve') {
       return {
-        main: 'Manually fill the water tank',
-        detail: 'Click the switch to open the valve and fill the water tank. This ensures you have enough water for irrigation.',
-        action: isOn ? 'Tank is filling' : 'Click to fill tank'
+        main: t('controls.card.valve.main'),
+        detail: t('controls.card.valve.detail'),
+        action: isOn ? t('controls.card.valve.actionOn') : t('controls.card.valve.actionOff')
       };
     }
     return {
-      main: 'Manual control override',
-      detail: 'Use this switch to manually control the system.',
-      action: isOn ? 'Active' : 'Inactive'
+      main: t('controls.card.generic.main'),
+      detail: t('controls.card.generic.detail'),
+      action: isOn ? t('controls.card.generic.actionOn') : t('controls.card.generic.actionOff')
     };
   };
 

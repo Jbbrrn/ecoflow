@@ -57,10 +57,10 @@ const Footer = () => {
             <p className="text-sm text-white/80 mb-2">
               <span className="font-semibold block mb-1">Email:</span>
               <a
-                href="mailto:ubat@ub.edu.ph"
+                href="mailto:ecoflowublc@gmail.com"
                 className="hover:text-eco-green-light transition-colors"
               >
-                ubat@ub.edu.ph
+                ecoflowublc@gmail.com
               </a>
             </p>
             <p className="text-sm text-white/80">
