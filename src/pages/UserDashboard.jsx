@@ -311,17 +311,9 @@ const UserDashboard = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-                  className="bg-surface rounded-xl shadow-lg overflow-hidden relative h-full flex flex-col"
+                  className="bg-surface rounded-xl shadow-lg p-6 border-l-4 border-l-eco-green-medium h-full flex flex-col"
                 >
-                  {/* Green accent strip at top */}
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.6, ease: 'easeOut', delay: 0.4 }}
-                    className="h-1 bg-gradient-to-r from-eco-green-light via-eco-green-medium to-eco-green-light origin-left"
-                  ></motion.div>
-                  
-                  <div className="p-6 flex flex-col flex-1">
+                  <div className="flex flex-col flex-1">
                     {/* Title */}
                     <motion.h2
                       initial={{ opacity: 0, x: -20 }}
