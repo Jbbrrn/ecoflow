@@ -1814,7 +1814,7 @@ const AdminDashboard = () => {
       />
 
       <main className="flex-1 dashboard-main-content overflow-y-auto">
-        <header className="bg-surface shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
+        <header className="dashboard-main-header bg-surface shadow-sm p-4 md:p-6 flex items-center justify-between gap-4">
           <button
             type="button"
             className="md:hidden flex-shrink-0 p-2 rounded-lg text-eco-green-dark hover:bg-eco-green-bg focus:outline-none focus:ring-2 focus:ring-eco-green-light min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1840,6 +1840,9 @@ const AdminDashboard = () => {
                   <div className="sensors-card-container">
                     <div className="sensors-card-title">
                       SOIL MOISTURE CONTENT PERCENTAGE
+                      <div className="text-xs text-gray-600 font-normal mt-1">
+                        Sensor 1: Top bench • Sensor 2: Middle bench • Sensor 3: Bottom bench
+                      </div>
                     </div>
                     <div className="sensors-wrapper">
                       {/* Soil Moisture Sensor 1 - Water Tank */}

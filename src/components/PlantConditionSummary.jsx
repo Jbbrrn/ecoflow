@@ -53,18 +53,21 @@ const PlantConditionSummary = ({ sensorData }) => {
     else if (humidity >= 50 && humidity <= 70) humidityScore = 100;
     
     // Average soil moisture
-    // Optimal: 50% and above, Below 50% needs watering
+    // New interpretation:
+    // - 90–100%: very wet (no irrigation needed)
+    // - 70–89% : optimal range
+    // - < 70%  : dry (irrigation needed)
     const avgSoil = (soil1 + soil2 + soil3) / 3;
     let soilScore = 100;
-    if (avgSoil < 50) {
-      // Below 50% needs watering
-      if (avgSoil < 30) soilScore = 40; // Very dry
-      else if (avgSoil < 40) soilScore = 60; // Dry
-      else soilScore = 75; // Slightly below optimal
+    if (avgSoil < 70) {
+      // Below 70% needs irrigation
+      if (avgSoil < 50) soilScore = 40; // Very dry
+      else if (avgSoil < 60) soilScore = 60; // Dry
+      else soilScore = 75; // Slightly below target (60–69)
     } else {
-      // 50% and above is optimal
-      if (avgSoil > 80) soilScore = 85; // Too wet but still acceptable
-      else soilScore = 100; // Optimal range (50-80%)
+      // 70% and above is acceptable
+      if (avgSoil >= 90) soilScore = 85; // Very wet but still acceptable
+      else soilScore = 100; // Optimal range (70–89)
     }
     
     // Calculate overall score (weighted average)
@@ -104,27 +107,39 @@ const PlantConditionSummary = ({ sensorData }) => {
     
     const getSoilStatus = () => {
       const sensors = [soil1, soil2, soil3].filter(s => s > 0);
-      // Below 50% needs watering, 50% and above is optimal
-      const needsWatering = sensors.filter(s => s < 50).length;
-      const tooWet = sensors.filter(s => s > 80).length;
-      
-      // If all sensors are 50% and above, it's normal/optimal
-      if (needsWatering === 0 && tooWet === 0 && sensors.length === 3) {
-        return { status: 'Normal', Icon: CheckIcon, color: '#3d860b' };
+      if (sensors.length === 0) {
+        return { status: 'No soil data', Icon: WarningIcon, color: '#6B7280' };
       }
-      if (needsWatering === 0 && tooWet === 0) {
-        return { status: 'All sensors optimal', Icon: CheckIcon, color: '#3d860b' };
+
+      // Thresholds:
+      // - < 70%  : dry / needs irrigation
+      // - 70–89% : optimal range
+      // - >= 90% : very wet
+      const drySensors = sensors.filter(s => s < 70).length;
+      const veryWetSensors = sensors.filter(s => s >= 90).length;
+
+      if (drySensors === 0 && veryWetSensors === 0 && sensors.length === 3) {
+        return { status: 'All sensors in optimal range (70–89%)', Icon: CheckIcon, color: '#3d860b' };
       }
-      if (needsWatering === 1) {
-        return { status: '1 sensor needs watering', Icon: WarningIcon, color: '#F59E0B' };
+
+      if (drySensors > 0) {
+        if (drySensors === 1) {
+          return { status: '1 sensor is dry (needs irrigation)', Icon: WarningIcon, color: '#F59E0B' };
+        }
+        if (drySensors === sensors.length) {
+          return { status: 'All sensors are dry (irrigation needed)', Icon: CrossIcon, color: '#EF4444' };
+        }
+        return { status: `${drySensors} sensors are dry (needs irrigation)`, Icon: WarningIcon, color: '#F59E0B' };
       }
-      if (needsWatering > 1) {
-        return { status: `${needsWatering} sensors need watering`, Icon: CrossIcon, color: '#EF4444' };
+
+      if (veryWetSensors > 0) {
+        if (veryWetSensors === sensors.length) {
+          return { status: 'All sensors very wet (skip irrigation)', Icon: WarningIcon, color: '#F59E0B' };
+        }
+        return { status: 'Some sensors very wet (skip irrigation there)', Icon: WarningIcon, color: '#F59E0B' };
       }
-      if (tooWet > 0) {
-        return { status: 'Some sensors too wet', Icon: WarningIcon, color: '#F59E0B' };
-      }
-      return { status: 'Normal', Icon: CheckIcon, color: '#3d860b' };
+
+      return { status: 'Soil moisture in acceptable range', Icon: CheckIcon, color: '#3d860b' };
     };
     
     // Get attention items
@@ -134,15 +149,15 @@ const PlantConditionSummary = ({ sensorData }) => {
     if (temp > 35) attentionItems.push('Temperature too high');
     if (temp < 10) attentionItems.push('Temperature too low');
     
-    // Soil moisture: Below 50% needs watering
-    const drySensors = [soil1, soil2, soil3].filter(s => s > 0 && s < 50).length;
-    const wetSensors = [soil1, soil2, soil3].filter(s => s > 80).length;
+    // Soil moisture attention items using new thresholds
+    const drySensors = [soil1, soil2, soil3].filter(s => s > 0 && s < 70).length;
+    const wetSensors = [soil1, soil2, soil3].filter(s => s >= 90).length;
     
     if (drySensors > 0) {
-      attentionItems.push(`${drySensors} sensor(s) below 50% - needs watering`);
+      attentionItems.push(`${drySensors} sensor(s) below 70% - irrigation recommended`);
     }
     if (wetSensors > 0) {
-      attentionItems.push(`${wetSensors} sensor(s) too wet`);
+      attentionItems.push(`${wetSensors} sensor(s) very wet (≥ 90%)`);
     }
     
     return {
@@ -314,15 +329,26 @@ const PlantConditionSummary = ({ sensorData }) => {
                 <div className="flex-1">
                   <span className="text-sm font-semibold text-gray-700">Soil Moisture</span>
                   <p className="text-xs text-gray-500">{plantCondition.soilStatus.status}</p>
-                  <div className="flex gap-4 mt-1">
+                  <div className="flex flex-col mt-1 gap-1">
+                    <div className="flex gap-4">
+                      <span className="text-xs text-gray-600">
+                        Top bench (Sensor 1):{' '}
+                        <span className="font-semibold">
+                          {plantCondition.soil1 > 0 ? `${plantCondition.soil1.toFixed(0)}%` : '--'}
+                        </span>
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        Middle bench (Sensor 2):{' '}
+                        <span className="font-semibold">
+                          {plantCondition.soil2 > 0 ? `${plantCondition.soil2.toFixed(0)}%` : '--'}
+                        </span>
+                      </span>
+                    </div>
                     <span className="text-xs text-gray-600">
-                      Sensor 1: <span className="font-semibold">{plantCondition.soil1 > 0 ? `${plantCondition.soil1.toFixed(0)}%` : '--'}</span>
-                    </span>
-                    <span className="text-xs text-gray-600">
-                      Sensor 2: <span className="font-semibold">{plantCondition.soil2 > 0 ? `${plantCondition.soil2.toFixed(0)}%` : '--'}</span>
-                    </span>
-                    <span className="text-xs text-gray-600">
-                      Sensor 3: <span className="font-semibold">{plantCondition.soil3 > 0 ? `${plantCondition.soil3.toFixed(0)}%` : '--'}</span>
+                      Bottom bench (Sensor 3):{' '}
+                      <span className="font-semibold">
+                        {plantCondition.soil3 > 0 ? `${plantCondition.soil3.toFixed(0)}%` : '--'}
+                      </span>
                     </span>
                   </div>
                 </div>

@@ -265,18 +265,29 @@ const Analytics = () => {
 
   // Data-driven "What this means" copy (used when AI is unavailable or as fallback)
   const getSoilMeaning = (soil) => {
-    if (!soil) return 'Soil moisture shows how much water is in your soil. Values above 50% mean your plants have enough water. Below 50% means they need watering.';
+    if (!soil) {
+      return 'Soil moisture shows how much water is in your soil. Values between 70–89% are ideal. Below 70% means the soil is getting dry and irrigation is needed; above 90% means it is very wet.';
+    }
     const s1 = soil.sensor1?.current ?? 0;
     const s2 = soil.sensor2?.current ?? 0;
     const s3 = soil.sensor3?.current ?? 0;
-    const allGood = s1 >= 50 && s2 >= 50 && s3 >= 50;
-    const anyDry = s1 < 50 || s2 < 50 || s3 < 50;
-    const anyWet = s1 > 80 || s2 > 80 || s3 > 80;
-    if (anyDry && anyWet) return 'Some areas are dry and others are quite wet. Water the dry spots and skip the wet ones.';
-    if (anyDry) return 'Some areas are dry. Consider watering those spots so your plants have enough water.';
-    if (anyWet) return 'Some areas are quite wet. You can skip watering there for a while.';
-    if (allGood) return 'Your plants have enough water. No need to water right now.';
-    return 'Soil moisture shows how much water is in your soil. Values above 50% mean your plants have enough water. Below 50% means they need watering.';
+    const allOptimal = s1 >= 70 && s1 <= 89 && s2 >= 70 && s2 <= 89 && s3 >= 70 && s3 <= 89;
+    const anyDry = s1 < 70 || s2 < 70 || s3 < 70;
+    const anyVeryWet = s1 >= 90 || s2 >= 90 || s3 >= 90;
+
+    if (anyDry && anyVeryWet) {
+      return 'Some areas are dry (below 70%) while others are very wet (90%+). Irrigate only the dry spots and skip the very wet ones.';
+    }
+    if (anyDry) {
+      return 'Some areas are dry (below 70%). Those pots need irrigation so your plants stay healthy.';
+    }
+    if (anyVeryWet) {
+      return 'Some areas are very wet (90%+). You can skip irrigation there for a while.';
+    }
+    if (allOptimal) {
+      return 'All sensors are in the ideal range (70–89%). Your plants have enough water and no irrigation is needed right now.';
+    }
+    return 'Soil moisture shows how much water is in your soil. Values between 70–89% are ideal, below 70% means the soil is dry, and above 90% is very wet.';
   };
   const getTempMeaning = (current) => {
     if (current == null || current === undefined) return 'Temperature affects plant growth. Most plants grow best between 20-25°C. Too hot or too cold can stress your plants.';
@@ -376,25 +387,37 @@ const Analytics = () => {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-700">Soil Moisture</h3>
-                <p className="text-xs text-gray-500">Optimal: 50% and above</p>
+                <p className="text-xs text-gray-500">Optimal range: 70–89%</p>
               </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Sensor 1:</span>
-                <span className={`font-semibold ${stats.soil.sensor1.current >= 50 ? 'text-eco-green-dark' : 'text-orange-600'}`}>
+                <span className="text-gray-600">Sensor 1 (Top):</span>
+                <span className={`font-semibold ${
+                  stats.soil.sensor1.current >= 70 && stats.soil.sensor1.current <= 89
+                    ? 'text-eco-green-dark'
+                    : 'text-orange-600'
+                }`}>
                   {stats.soil.sensor1.current}%
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Sensor 2:</span>
-                <span className={`font-semibold ${stats.soil.sensor2.current >= 50 ? 'text-eco-green-dark' : 'text-orange-600'}`}>
+                <span className="text-gray-600">Sensor 2 (Middle):</span>
+                <span className={`font-semibold ${
+                  stats.soil.sensor2.current >= 70 && stats.soil.sensor2.current <= 89
+                    ? 'text-eco-green-dark'
+                    : 'text-orange-600'
+                }`}>
                   {stats.soil.sensor2.current}%
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Sensor 3:</span>
-                <span className={`font-semibold ${stats.soil.sensor3.current >= 50 ? 'text-eco-green-dark' : 'text-orange-600'}`}>
+                <span className="text-gray-600">Sensor 3 (Bottom):</span>
+                <span className={`font-semibold ${
+                  stats.soil.sensor3.current >= 70 && stats.soil.sensor3.current <= 89
+                    ? 'text-eco-green-dark'
+                    : 'text-orange-600'
+                }`}>
                   {stats.soil.sensor3.current}%
                 </span>
               </div>
@@ -536,8 +559,8 @@ const Analytics = () => {
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-700 mb-2">Soil Moisture Trends</h3>
           <p className="text-sm text-gray-500">
-            Track how soil moisture changes over time. The dashed green line shows the optimal level (50%).
-            All three sensors should stay above this line for healthy plants.
+            Track how soil moisture changes over time. The dashed green line shows the target range start (70%).
+            Ideally, all three sensors should stay between 70–89% for healthy plants.
           </p>
         </div>
         {chartData.length > 0 ? (
@@ -559,7 +582,12 @@ const Analytics = () => {
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
-              <ReferenceLine y={50} stroke="#3d860b" strokeDasharray="5 5" label={{ value: "Optimal (50%)", position: "topRight" }} />
+              <ReferenceLine
+                y={70}
+                stroke="#3d860b"
+                strokeDasharray="5 5"
+                label={{ value: "Target start (70%)", position: "topRight" }}
+              />
               <Line type="monotone" dataKey="Sensor 1" stroke="#43a047" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="Sensor 2" stroke="#1e88e5" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="Sensor 3" stroke="#ff9800" strokeWidth={2} dot={false} />

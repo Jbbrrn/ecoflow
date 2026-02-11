@@ -228,9 +228,10 @@ const DashboardSidebar = ({ activeSection, onSectionChange, userRole, mobileOpen
         <div className="sidebar-footer">
           <div className="user-info">
             <div className="user-avatar">
-              <div className="user-avatar-initial">
-                {username ? username.charAt(0).toUpperCase() : (userRole === 'admin' ? 'A' : 'U')}
-              </div>
+              <img
+                src="/css/user_icon/user_avatar.png"
+                alt="User avatar"
+              />
             </div>
             {!effectiveCollapsed && (
               <div className="user-details">
