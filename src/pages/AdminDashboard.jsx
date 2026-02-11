@@ -217,13 +217,13 @@ const AdminDashboard = () => {
 
   const getDeviceState = (device) => {
     const command = commandStatus[device];
-    if (command?.actual_state) {
+
+    // Only trust actual_state once the command has succeeded.
+    if (command?.status === 'SUCCESS' && command?.actual_state) {
       return command.actual_state;
     }
-    if (command?.desired_state) {
-      return command.desired_state;
-    }
-    // Fallback to sensor data
+
+    // For pending / failed / no command, fall back to sensor data
     if (device === 'pump') {
       return sensorData.pump_status === 1 ? 'ON' : 'OFF';
     }
