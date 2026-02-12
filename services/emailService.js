@@ -178,7 +178,7 @@ async function sendCriticalMoistureAlert(sensorData) {
     }
 
     const sensorList = criticalSensors.map(s => `Sensor ${s.number}: ${s.value}%`).join('<br>');
-    const timestamp = new Date(sensorData.timestamp || new Date()).toLocaleString();
+    const timestamp = new Date(sensorData.timestamp || new Date()).toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
 
     const subject = `🚨 CRITICAL: Low Soil Moisture Detected - EcoFlow System`;
     
@@ -237,7 +237,7 @@ This is an automated alert from the EcoFlow Smart Greenhouse Management System.
  * Send sprinkler activation notification
  */
 async function sendSprinklerActivationNotification(commandData, requestedBy) {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
     const requestedByUser = requestedBy || 'System';
 
     const subject = `💧 Sprinkler System Activated - EcoFlow System`;
